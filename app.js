@@ -382,10 +382,11 @@ function renderHoofprints(){const per=ui.hpPer||'month',now=new Date(),ym=now.to
  const nf=n=>n.toLocaleString(LOC,{maximumFractionDigits:1});
  $('#home').innerHTML=`<section class="hp-page"><h2>${T('myHoofprints')}</h2>
  <div class="seg" role="tablist">${[['month',T('perMonth')],['year',T('perYear')],['all',T('perAll')]].map(([k,l])=>`<button role="tab" aria-selected="${per===k}" data-per="${k}">${l}</button>`).join('')}</div>
- ${local.log.length?`<div class="hpkpis">
+ ${local.log.length?`<h3 class="first">${T('hpRoute')}</h3><div class="hpkpis">
   <div class="kpi"><b>${L.length}</b><span>${T('hpRides')}</span></div><div class="kpi"><b>${nf(sum('km'))}</b><span>${T('km')}</span></div>
-  <div class="kpi"><b>${fmtInt(sum('up'))}</b><span>${T('up')}</span></div><div class="kpi"><b>${fmtDur(sum('hours'))}</b><span>${T('hpTime')}</span></div>
-  <div class="kpi"><b>🐴 ${fmtInt(eh)}</b><span>kcal · ${T('eHay',{n:nf(eh/HAY_KCAL)})}</span></div><div class="kpi"><b>🧑 ${fmtInt(er)}</b><span>kcal · ${T('eBeer',{n:nf(er/BEER_KCAL)})}</span></div></div>
+  <div class="kpi"><b>${fmtInt(sum('up'))} m</b><span>${T('hpClimb')}</span></div><div class="kpi"><b>${fmtDur(sum('hours'))}</b><span>${T('hpTime')}</span></div>
+  </div>
+ <h3>${T('energy')}</h3><div class="ekpis"><div class="ekpi"><span class="eic">🐴 ${T('eHorseKg')}</span><b>${fmtInt(eh)} kcal</b><span>${T('eHay',{n:nf(eh/HAY_KCAL)})}</span></div><div class="ekpi"><span class="eic">🧑 ${T('eRiderKg')}</span><b>${fmtInt(er)} kcal</b><span>${T('eBeer',{n:nf(er/BEER_KCAL)})}</span></div></div>
  <h3>${T('kmPerMonth')}</h3><div class="bars" role="img" aria-label="${T('kmPerMonth')}">${months.map(m=>`<div class="bar" tabindex="0" title="${m.label}: ${nf(m.km)} km"><span class="bv">${m.km?nf(m.km):''}</span><i style="height:${Math.max(m.km/max*85,m.km?2:0)}%"></i><span class="bl">${m.label}</span></div>`).join('')}</div>
  ${horses.length?`<h3>${T('myHorses')}</h3><div class="horses">${horses.map(x=>`<div class="horse"><b>${esc(x.h)}</b><span class="muted">${T(x.n===1?'ridden1':'riddenN',{n:x.n})} · ${nf(x.km)} km</span>
   <label>${T('weight')} <input type="number" min="150" max="1100" step="10" value="${local.horses[x.h]||600}" data-horse="${esc(x.h)}"> kg</label></div>`).join('')}</div>`:''}
