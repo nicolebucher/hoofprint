@@ -203,10 +203,11 @@ function renderPanel(){const p=$('#panel');if(ui.sel&&byId(ui.sel)){p.innerHTML=
 function emptyHTML(){if(ui.tab==='fav')return`<div class="empty"><strong>${T('emptyFavT')}</strong>${T('emptyFav')}<a class="btn" href="#/explore">${T('navExplore')}</a></div>`;
  if(ui.tab==='mine')return`<div class="empty"><strong>${T('emptyMineT')}</strong>${T('emptyMine')}<button class="btn primary" data-act="add">${T('addRoute')}</button></div>`;
  return`<div class="empty"><strong>${T('emptyT')}</strong>${T('empty')}${activeFilterCount()||ui.q?`<button class="btn" data-act="reset">${T('resetFilters')}</button>`:''}</div>`}
+const innBadge=r=>(r.features||[]).includes('inn')?`<span class="innbadge" title="${esc(featLabel('inn'))}" aria-label="${esc(featLabel('inn'))}">🍺</span>`:'';
 function cardHTML(r){const s=stats(r),a=avg(r),n=reviewsOf(r).length,ph=photosOf(r)[0];
  return`<a class="card" href="#/route/${encodeURIComponent(r.id)}" data-id="${esc(r.id)}">${ph?`<img class="thumb" src="${esc(ph.src)}" alt="" loading="lazy">`:`<div class="thumb"></div>`}
  <div style="min-width:0"><div class="src">${esc(srcLabel(r.source))}${isMine(r)?' · '+T('byYou'):''}${local.favorites.includes(r.id)?' · ♥':''}</div><h3>${esc(r.name)}</h3><div class="meta">${esc(r.region||T('noRegion'))}</div>
- <div class="stats"><span class="pill d-${esc(r.difficulty)}">${esc(diffLabel(r.difficulty))}</span><span>${fmtKm(s.km)} km</span><span>${fmtDur(s.hours)}</span>${s.hasE?`<span>↑ ${fmtInt(s.up)} m</span>`:''}<span>${n?`<span class="stars">${starStr(a)}</span> ${a.toLocaleString(LOC,{maximumFractionDigits:1})} (${n})`:T('unrated')}</span></div></div></a>`}
+ <div class="stats"><span class="pill d-${esc(r.difficulty)}">${esc(diffLabel(r.difficulty))}</span><span>${fmtKm(s.km)} km</span><span>${fmtDur(s.hours)}</span>${s.hasE?`<span>↑ ${fmtInt(s.up)} m</span>`:''}<span>${n?`<span class="stars">${starStr(a)}</span> ${a.toLocaleString(LOC,{maximumFractionDigits:1})} (${n})`:T('unrated')}</span>${innBadge(r)}</div></div></a>`}
 function bindList(){const p=$('#panel');
  const q=$('#q');q.oninput=()=>{ui.q=q.value;const pos=q.selectionStart;renderPanel();drawRoutes();const n=$('#q');n.focus();n.setSelectionRange(pos,pos)};
  const geo=$('#geo');if(geo)geo.onclick=()=>{const v=ui.q.trim();ui.q='';findPlace(v)};
@@ -436,7 +437,7 @@ function newRoutes(){return allRoutes().slice().sort((a,b)=>String(b.createdAt).
 function topRoutes(){return allRoutes().filter(r=>reviewsOf(r).length).slice().sort((a,b)=>(avg(b)*Math.min(reviewsOf(b).length,3))-(avg(a)*Math.min(reviewsOf(a).length,3))||String(b.createdAt).localeCompare(String(a.createdAt))).slice(0,6)}
 function tileHTML(r){const s=stats(r),a=avg(r),n=reviewsOf(r).length,ph=photosOf(r)[0];
  return`<a class="tile" href="#/route/${encodeURIComponent(r.id)}">${ph?`<img src="${esc(ph.src)}" alt="" loading="lazy">`:'<div class="ph"></div>'}
- <div class="tbody"><div class="tmeta"><span class="pill d-${esc(r.difficulty)}">${esc(diffLabel(r.difficulty))}</span>${n?`<span class="stars">★ ${a.toLocaleString(LOC,{maximumFractionDigits:1})}</span><span class="muted">(${n})</span>`:''}</div>
+ <div class="tbody"><div class="tmeta"><span class="pill d-${esc(r.difficulty)}">${esc(diffLabel(r.difficulty))}</span>${n?`<span class="stars">★ ${a.toLocaleString(LOC,{maximumFractionDigits:1})}</span><span class="muted">(${n})</span>`:''}${innBadge(r)}</div>
  <h4>${esc(r.name)}</h4><div class="muted">${esc(r.region||T('noRegion'))}</div><div class="tstats">${fmtKm(s.km)} km · ${fmtDur(s.hours)}${s.hasE?` · ↑ ${fmtInt(s.up)} m`:''}</div></div></a>`}
 function renderHome(){const regions=[...new Set(allRoutes().map(r=>(r.region||'').split('·')[0].trim()).filter(Boolean))].sort();
  const quick=[['leicht',T('qEasy')],['gallop',T('qGallop')],['beach',T('qBeach')],['inn',T('qInn')]];
