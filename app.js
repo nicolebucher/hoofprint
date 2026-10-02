@@ -10,7 +10,8 @@ function haversine(a,b){const R=6371,toR=Math.PI/180,dLat=(b[0]-a[0])*toR,dLng=(
 function cssVar(n){return getComputedStyle(document.documentElement).getPropertyValue(n).trim()}
 function hexRgb(h){h=h.replace('#','');if(h.length===3)h=h.split('').map(c=>c+c).join('');const n=parseInt(h,16);return[(n>>16)&255,(n>>8)&255,n&255]}
 const I18N=window.HOOFPRINT_I18N;
-let LANG=(()=>{try{const v=localStorage.getItem('hoofprint.lang');if(v&&I18N[v])return v}catch(e){}return /^de\b/i.test(navigator.language||'')?'de':'en'})();
+let LANG=(()=>{try{const v=localStorage.getItem('hoofprint.lang');if(v&&I18N[v])return v}catch(e){}/* no saved choice: the first supported language in the browser's preference list (German phones and browsers in DE/AT/CH get German) */
+ for(const l of (navigator.languages&&navigator.languages.length?navigator.languages:[navigator.language||''])){const k=String(l).slice(0,2).toLowerCase();if(I18N[k])return k}return 'en'})();
 const LOC=I18N[LANG].locale;
 function T(k,v){let s=I18N[LANG][k]??I18N.de[k]??k;if(v)for(const n in v)s=s.split('{'+n+'}').join(v[n]);return s}
 const tr=(r,f)=>(LANG==='en'&&r[f+'_en'])||r[f];
@@ -401,6 +402,37 @@ function renderHoofprints(){const per=ui.hpPer||'month',now=new Date(),ym=now.to
  $('#home').querySelectorAll('[data-per]').forEach(b=>b.onclick=()=>{ui.hpPer=b.dataset.per;renderHoofprints()});
  $('#home').querySelectorAll('[data-horse]').forEach(i=>i.onchange=()=>{const v=Math.min(1100,Math.max(150,+i.value||600));local.horses[i.dataset.horse]=v;saveLocal();renderHoofprints()});
  $('#home').querySelectorAll('[data-unlog]').forEach(b=>b.onclick=()=>{local.log=local.log.filter(x=>x.id!==b.dataset.unlog);saveLocal();renderHoofprints()})}
+/* ---------- "Route folgen": live position on the route, distance left, warning when off the route ---------- */
+const isApple=/iPad|iPhone|iPod|Macintosh/.test(navigator.userAgent)&&'ontouchend' in document;
+const startNavUrl=c=>isApple?`https://maps.apple.com/?daddr=${c[0]},${c[1]}`:`https://www.google.com/maps/dir/?api=1&destination=${c[0]},${c[1]}`;
+let nav=null;
+/* nearest point on the route: local flat projection is precise enough at these distances */
+function snap(r,ll,hintKm){const s=stats(r),P=r.coords,k=Math.cos(ll[0]*Math.PI/180),xy=p=>[(p[1]-ll[1])*111.32*k,(p[0]-ll[0])*110.57];let best=null;
+ for(let i=1;i<P.length;i++){const a=xy(P[i-1]),b=xy(P[i]),dx=b[0]-a[0],dy=b[1]-a[1],L2=dx*dx+dy*dy;const t=L2?Math.max(0,Math.min(1,-(a[0]*dx+a[1]*dy)/L2)):0;
+  const px=a[0]+t*dx,py=a[1]+t*dy,d=Math.hypot(px,py),along=s.prof[i-1][0]+t*(s.prof[i][0]-s.prof[i-1][0]);
+  /* on loops start and end meet: prefer the candidate close to where we were */
+  const score=d+(hintKm!=null?Math.max(0,Math.abs(along-hintKm)-1)*.05:0);if(!best||score<best.score)best={d,along,score}}
+ return best}
+function startFollow(r){if(!navigator.geolocation){toast(T('noGeo'));return}if(nav)stopFollow();if(rec){toast(T('recRunning'));return}
+ nav={r,watch:null,me:null,follow:true,along:null,off:false,lock:null,acc:null};
+ document.body.classList.add('navmode');setTimeout(()=>map.invalidateSize(),50);const bar=document.createElement('div');bar.className='recbar navbar';bar.id='navbar';$('.mapwrap').appendChild(bar);L.DomEvent.disableClickPropagation(bar);
+ map.on('dragstart',navDrag);renderNav();
+ navigator.wakeLock?.request('screen').then(l=>{if(nav)nav.lock=l}).catch(()=>{});
+ nav.watch=navigator.geolocation.watchPosition(p=>{if(!nav)return;const c=p.coords,ll=[c.latitude,c.longitude];nav.acc=c.accuracy;
+   const sn=snap(nav.r,ll,nav.along);const offNow=sn.d*1000>Math.max(40,Math.min(c.accuracy||0,80))+15;
+   if(!offNow)nav.along=sn.along;nav.dist=sn.d*1000;
+   if(offNow&&!nav.off){navigator.vibrate?.([200,100,200])}nav.off=offNow;
+   if(!nav.me)nav.me=L.marker(ll,{icon:L.divIcon({className:'',html:'<div class="me"></div>',iconSize:[18,18],iconAnchor:[9,9]}),interactive:false}).addTo(map);else nav.me.setLatLng(ll);
+   if(nav.follow)map.setView(ll,Math.max(map.getZoom(),15),{animate:true});renderNav()},
+  e=>{if(e.code===1){toast(T('geoDenied'));stopFollow()}},{enableHighAccuracy:true,maximumAge:3000,timeout:20000})}
+function navDrag(){if(nav&&nav.follow){nav.follow=false;renderNav()}}
+function renderNav(){const b=$('#navbar');if(!b||!nav)return;const tot=stats(nav.r).km,done=nav.along??0,left=Math.max(0,tot-done);
+ b.innerHTML=`<div class="recstats"><div><b>${nav.along==null?'–':fmtKm(left)}</b><span>${T('kmLeft')}</span></div><div><b>${nav.along==null?'–':fmtKm(done)}</b><span>${T('kmDone')}</span></div><div><b>${nav.along==null?'–':Math.round(done/tot*100)+' %'}</b><span>${T('progress')}</span></div></div>
+ <div class="rechint ${nav.off?'navoff':''}">${nav.me==null?T('navLocating'):nav.off&&nav.along==null?T('navFar',{km:fmtKm(nav.dist/1000)}):nav.off?(nav.dist<1000?T('navOff',{m:fmtInt(Math.round(nav.dist/10)*10)}):T('navOffKm',{km:fmtKm(nav.dist/1000)})):T('navOn')}</div>
+ <div class="recbtns">${nav.follow?'':`<button class="btn" id="nCenter">${T('navCenter')}</button>`}<button class="btn ghost" id="nStop">${T('navStop')}</button></div>`;
+ $('#nStop').onclick=stopFollow;$('#nCenter')?.addEventListener('click',()=>{nav.follow=true;if(nav.me)map.setView(nav.me.getLatLng(),Math.max(map.getZoom(),15));renderNav()})}
+function stopFollow(){if(!nav)return;if(nav.watch!=null)navigator.geolocation.clearWatch(nav.watch);nav.lock?.release?.().catch(()=>{});if(nav.me)map.removeLayer(nav.me);map.off('dragstart',navDrag);$('#navbar')?.remove();nav=null;document.body.classList.remove('navmode');setTimeout(()=>map.invalidateSize(),50)}
+document.addEventListener('visibilitychange',()=>{if(nav&&document.visibilityState==='visible')navigator.wakeLock?.request('screen').then(l=>{if(nav)nav.lock=l}).catch(()=>{})});
 function detailHTML(r){const s=stats(r),rv=reviewsOf(r),a=avg(r),fav=local.favorites.includes(r.id),ph=photosOf(r);
  const surf=Object.entries(r.surfaces||{Unbekannt:100});const tot=surf.reduce((x,y)=>x+y[1],0)||1;const c0=r.coords[0];
  return`<div class="detail"><div class="dhead"><button class="btn ghost" id="back">${T('back')}</button><span class="sp"></span>
@@ -408,6 +440,7 @@ function detailHTML(r){const s=stats(r),rv=reviewsOf(r),a=avg(r),fav=local.favor
  <button class="btn" id="share" title="${T('shareTitle')}" aria-label="${T('share')}"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V3M7 8l5-5 5 5M5 13v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6"/></svg><span class="lbl">${T('share')}</span></button><button class="btn" id="gpx" title="${T('gpxTitle')}">GPX</button></div>
  <div class="dbody">
  <div class="dtitle"><div class="src">${esc(srcLabel(r.source))} · ${s.loop?T('loop'):T('oneway')}${isMine(r)?' · '+T('byYou'):''}</div><h2>${esc(r.name)}</h2><div class="meta">${esc(r.region||T('noRegion'))} · <span class="pill d-${esc(r.difficulty)}">${esc(diffLabel(r.difficulty))}</span> ${rv.length?` · <span class="stars">${starStr(a)}</span> ${a.toLocaleString(LOC,{maximumFractionDigits:1})}`:''}</div></div>
+ <div class="navrow"><button class="btn primary" id="follow">🧭 ${T('followRoute')}</button><a class="btn" id="toStart" href="${startNavUrl(c0)}" target="_blank" rel="noopener">🚗 ${T('toStart')}</a></div>
  <div class="kpis"><div class="kpi"><b>${fmtKm(s.km)}</b><span>${T('km')}</span></div><div class="kpi"><b>${fmtDur(s.hours)}</b><span>${T('duration')}</span></div><div class="kpi"><b>${s.hasE?fmtInt(s.up):'–'}</b><span>${T('up')}</span></div><div class="kpi"><b>${s.hasE?fmtInt(s.down):'–'}</b><span>${T('down')}</span></div></div>
  ${ridesHTML(r)}
  <section class="prof"><h4>${T('profile')}</h4>${profileSVG(s)}</section>
@@ -439,7 +472,7 @@ async function shareRoute(r){const url=location.origin+location.pathname+'#/rout
 function bindDetail(){const r=byId(ui.sel);let stars=0;bindEnergy(stats(r));
  $('#rodeIt')?.addEventListener('click',()=>openRode(r));$('#allRides')?.addEventListener('click',()=>{ui.allRides=r.id;renderPanel()});
  document.querySelectorAll('[data-delride]').forEach(b=>b.onclick=async()=>{try{await backend.remove('ride',b.dataset.delride);local.myRides=local.myRides.filter(x=>x!==b.dataset.delride);saveLocal();toast(T('rideDeleted'));renderPanel()}catch(x){toast(x.message)}});
- $('#share').onclick=()=>shareRoute(r);
+ $('#share').onclick=()=>shareRoute(r);$('#follow').onclick=()=>startFollow(r);
  $('#back').onclick=back;
  $('#fav').onclick=()=>{const i=local.favorites.indexOf(r.id);i>=0?local.favorites.splice(i,1):local.favorites.push(r.id);saveLocal();toast(i>=0?T('favRemoved'):T('favAdded'));renderPanel()};
  $('#gpx').onclick=()=>downloadGpx(r);
@@ -641,7 +674,7 @@ let view=null,mapReady=false;
 function showView(v){view=v;$('#home').hidden=!['home','hoofprints','legal'].includes(v);$('#explore').hidden=v!=='explore';
  document.querySelectorAll('.topnav a').forEach(a=>a.classList.toggle('on',a.dataset.view===v||(a.dataset.view==='saved'&&ui.tab==='fav'&&v==='explore')));
  if(v==='explore'){if(!mapReady){mapReady=true;try{initMap()}catch(e){console.error(e);$('#map').innerHTML=`<div class="maperr">${T('mapFail')}</div>`}drawRoutes();fitAll()}else if(map)map.invalidateSize()}}
-function router(){if(ui.draft)endDraw();if(rec&&!location.hash.startsWith('#/explore'))recPause();
+function router(){if(ui.draft)endDraw();if(nav&&!location.hash.startsWith('#/route/'+encodeURIComponent(nav.r.id)))stopFollow();if(rec&&!location.hash.startsWith('#/explore'))recPause();
  const h=location.hash.replace(/^#\/?/,''),[path,qs]=h.split('?'),parts=path.split('/'),params=new URLSearchParams(qs||'');
  if(!parts[0]){showView('home');renderHome();window.scrollTo(0,0);return}
  if(parts[0]==='hoofprints'){showView('hoofprints');renderHoofprints();window.scrollTo(0,0);return}
