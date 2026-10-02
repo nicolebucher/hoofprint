@@ -52,7 +52,7 @@ SEED.forEach((r,i)=>{r.source='Beispiel';r.createdAt='2026-0'+(i+1)+'-01';r.seed
 /* ---------- this device (favourites, own posts, device id) ---------- */
 const KEY='hoofprint.v1';
 const uuid=()=>crypto.randomUUID?crypto.randomUUID():'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g,c=>{const r=Math.random()*16|0;return(c==='x'?r:(r&3|8)).toString(16)});
-let local={deviceId:null,favorites:[],mine:[],myReviews:[],myPhotos:[],myRides:[],posts:[],routes:[],reviews:[],photos:[],rides:[]};
+let local={deviceId:null,favorites:[],mine:[],myReviews:[],myPhotos:[],myRides:[],log:[],horses:{},posts:[],routes:[],reviews:[],photos:[],rides:[]};
 try{const raw=localStorage.getItem(KEY)||localStorage.getItem('hufspur.v2');if(raw)local=Object.assign(local,JSON.parse(raw))}catch(e){}
 function saveLocal(){try{localStorage.setItem(KEY,JSON.stringify(local));return true}catch(e){return false}}
 if(!local.deviceId){local.deviceId=uuid();saveLocal()}
@@ -167,21 +167,37 @@ function poiHint(P,txt,n){P.hint.textContent=txt||'';P.hint.hidden=!txt;P.cnt.te
 function togglePoi(P){P.on=!P.on;P.btn.setAttribute('aria-pressed',P.on);local.poi={...(local.poi||{}),[P.key]:P.on};saveLocal();
  if(P.on)loadPoi(P);else{P.layer.clearLayers();P.seen={};poiHint(P,'');P.btn.title=T(P.key+'Title')}}
 /* Ask all servers at once and take the first good answer; public Overpass servers are often busy */
-async function overpass(q){const ctl=new AbortController(),t=setTimeout(()=>ctl.abort(),25000);
+async function overpass(q){const ctl=new AbortController(),t=setTimeout(()=>ctl.abort(),12000);
  try{return await Promise.any(OVERPASS.map(async url=>{const r=await fetch(url+'?data='+encodeURIComponent(q),{signal:ctl.signal});if(!r.ok)throw new Error(url+' HTTP '+r.status);const j=await r.json();if(!Array.isArray(j.elements))throw new Error(url+' bad');return j}))}
  finally{clearTimeout(t);ctl.abort()}}
+/* Fallback when every Overpass server fails: OpenStreetMap's Nominatim search, limited to the map view.
+   Nominatim allows about one request per second, so the searches run one after another. */
+const NOMI_SEARCH={food:[['amenity','restaurant'],['amenity','fast_food'],['amenity','cafe'],['amenity','biergarten'],['amenity','pub'],['q','kiosk'],['q','Gasthaus'],['q','Gasthof']],
+ stations:[['q','Wanderreitstation'],['q','Reiterhof'],['q','Reitstall'],['q','Pferdehof'],['q','Reitanlage'],['q','riding']]};
+async function nominatimPoi(P,b){const vb=[b.getWest(),b.getNorth(),b.getEast(),b.getSouth()].map(x=>x.toFixed(4)).join(','),out=[];let ok=0,last;
+ for(const [k,v] of NOMI_SEARCH[P.key]){if(!P.on)break;
+  try{const r=await fetch(`https://nominatim.openstreetmap.org/search?format=jsonv2&extratags=1&bounded=1&limit=40&accept-language=${LANG}&viewbox=${vb}&${k}=${encodeURIComponent(v)}`);if(!r.ok)throw new Error('HTTP '+r.status);
+   const a=await r.json();ok++;
+   a.forEach(x=>{const tags={...(x.extratags||{}),name:x.name||undefined};tags[x.category]=x.type;out.push({type:x.osm_type,id:x.osm_id,lat:+x.lat,lon:+x.lon,tags})})}catch(e){last=e}
+  await new Promise(res=>setTimeout(res,1100))}
+ if(!ok)throw new Error('Nominatim: '+(last?.message||'?'));
+ /* keep only plausible hits for the station search, which is name based */
+ const keep=P.key==='stations'?out.filter(e=>e.tags.leisure==='horse_riding'||/reit|pferd|horse|riding/i.test(e.tags.name||'')):out;
+ return{elements:keep}}
 async function loadPoi(P){if(!P.on)return;if(P.busy){P.again=true;return}
  if(map.getZoom()<POI_MINZOOM){poiHint(P,T('poiZoom'));return}
  const b=map.getBounds().pad(.1),bb=[b.getSouth(),b.getWest(),b.getNorth(),b.getEast()].map(x=>x.toFixed(4)).join(',');
  P.busy=true;P.btn.classList.add('busy');poiHint(P,T('poiLoading'));
- try{const j=await overpass(`[out:json][timeout:20];(${P.def.query(bb)});out center 300;`);if(!P.on)return;
+ try{let j;try{j=await overpass(`[out:json][timeout:20];(${P.def.query(bb)});out center 300;`)}
+  catch(e){console.warn('Overpass',e);P.err='Overpass: '+((e.errors||[e]).map(x=>x.message||x.name).join(', '));poiHint(P,T('poiFallback'));j=await nominatimPoi(P,b)}
+  if(!P.on)return;
   j.elements.forEach(e=>{const id=e.type+e.id;if(P.seen[id])return;const la=e.lat??e.center?.lat,lo=e.lon??e.center?.lon;if(la==null)return;P.seen[id]=1;
    const t=e.tags||{},k=P.def.kind(t),label=T(P.key+'_'+k),web=t.website||t['contact:website'],tel=t.phone||t['contact:phone'];
    const m=L.marker([la,lo],{icon:L.divIcon({className:'',html:`<div class="poipin ${P.key}">${P.def.icons[k]||P.def.icon}</div>`,iconSize:[26,26],iconAnchor:[13,13]}),title:t.name||label,keyboard:false});
    m.bindPopup(`<b>${esc(t.name||label)}</b><br><span class="muted">${esc(label)}</span>${t.opening_hours?`<br>${T('poiHours')}: ${esc(t.opening_hours)}`:''}${tel?`<br><a href="tel:${esc(tel.replace(/[^+\d]/g,''))}">${esc(tel)}</a>`:''}${web?`<br><a href="${esc(/^https?:/.test(web)?web:'https://'+web)}" target="_blank" rel="noopener">${T('poiWeb')}</a>`:''}<br><a href="https://www.openstreetmap.org/${e.type}/${e.id}" target="_blank" rel="noopener">${T('poiOsm')}</a>`);
    m.addTo(P.layer)});
   const n=P.layer.getLayers().length;poiHint(P,n?'':T(P.key+'None'),n);P.btn.title=n?T(n===1?P.key+'N1':P.key+'N',{n}):T(P.key+'Title')}
- catch(e){console.warn('Overpass',e);poiHint(P,T('poiDown'))}
+ catch(e){console.warn('POI',e);poiHint(P,T('poiDown')+' ('+(P.err||'')+(e.message?' / '+e.message:'')+')')}
  finally{P.busy=false;P.btn.classList.remove('busy');if(P.again){P.again=false;loadPoi(P)}}}
 function fitAll(){if(!map)return;const b=L.latLngBounds([]);allRoutes().forEach(r=>r.coords.forEach(p=>b.extend([p[0],p[1]])));if(b.isValid())map.fitBounds(b,{padding:[30,30],maxZoom:13,animate:false})}
 function drawRoutes(){if(!map)return;Object.values(routeLayers).forEach(g=>map.removeLayer(g));Object.values(startMarkers).forEach(m=>map.removeLayer(m));routeLayers={};startMarkers={};
@@ -347,11 +363,39 @@ function openRode(r){const today=new Date().toISOString().slice(0,10),picked=new
  $('#rdSave',m).onclick=async e=>{if($('#rdWeb',m).value)return;const date=$('#rdDate',m).value||today;if(date>today){$('#rdErr',m).textContent=T('rideFuture');return}
   e.target.disabled=true;
   try{throttle();const v={id:uuid(),routeId:r.id,date,name:$('#rdName',m).value.trim().slice(0,60),horse:$('#rdHorse',m).value.trim().slice(0,40),conditions:[...picked],note:$('#rdNote',m).value.trim().slice(0,300)};
-   await backend.addRide(v);local.myRides.push(v.id);local.lastHorse=v.horse;local.lastName=v.name;saveLocal();
+   await backend.addRide(v);local.myRides.push(v.id);local.lastHorse=v.horse;local.lastName=v.name;logRide(r,v.date,v.horse,v.id);
    /* stars given here also count as a normal review, with the note as its text */
    if(stars){const rv={id:uuid(),routeId:r.id,name:v.name||T('anon'),stars,text:v.note,date:new Date().toISOString()};try{await backend.addReview(rv);local.myReviews.push(rv.id);saveLocal()}catch(x){toast(x.message)}}
    m.close();toast(T('rideThanks'));renderPanel()}
   catch(x){$('#rdErr',m).textContent=x.message;e.target.disabled=false}}}
+/* "Meine Hoofprints": personal ride statistics, kept on this device (a login can sync them later) */
+function logRide(r,date,horse,id){const s=stats(r);if(horse&&!local.horses[horse])local.horses[horse]=local.horseKg||600;
+ local.log=local.log.filter(x=>x.id!==id);local.log.unshift({id,routeId:r.id,name:r.name,date,km:+s.km.toFixed(2),up:Math.round(s.up||0),hasE:s.hasE,hours:+s.hours.toFixed(2),horse:horse||''});saveLocal()}
+function logEnergy(x){const kg=(x.horse&&local.horses[x.horse])||local.horseKg||600;return energy({km:x.km,up:x.up,hasE:x.hasE},kg,local.riderKg||70)}
+function renderHoofprints(){const per=ui.hpPer||'month',now=new Date(),ym=now.toISOString().slice(0,7),y=ym.slice(0,4);
+ const inPer=x=>per==='all'||(per==='year'?x.date.startsWith(y):x.date.startsWith(ym));
+ const L=local.log.filter(inPer),sum=k=>L.reduce((a,x)=>a+(x[k]||0),0),en=L.map(logEnergy),eh=en.reduce((a,e)=>a+e.horse,0),er=en.reduce((a,e)=>a+e.rider,0);
+ const months=[...Array(12)].map((_,i)=>{const d=new Date(now.getFullYear(),now.getMonth()-11+i,1),k=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
+  return{k,label:d.toLocaleDateString(LOC,{month:'short'}),km:local.log.filter(x=>x.date.startsWith(k)).reduce((a,x)=>a+x.km,0)}});
+ const max=Math.max(...months.map(m=>m.km),1);
+ const horses=[...new Set(local.log.map(x=>x.horse).filter(Boolean))].map(h=>({h,n:local.log.filter(x=>x.horse===h).length,km:local.log.filter(x=>x.horse===h).reduce((a,x)=>a+x.km,0)})).sort((a,b)=>b.km-a.km);
+ const nf=n=>n.toLocaleString(LOC,{maximumFractionDigits:1});
+ $('#home').innerHTML=`<section class="hp-page"><h2>${T('myHoofprints')}</h2>
+ <div class="seg" role="tablist">${[['month',T('perMonth')],['year',T('perYear')],['all',T('perAll')]].map(([k,l])=>`<button role="tab" aria-selected="${per===k}" data-per="${k}">${l}</button>`).join('')}</div>
+ ${local.log.length?`<div class="hpkpis">
+  <div class="kpi"><b>${L.length}</b><span>${T('hpRides')}</span></div><div class="kpi"><b>${nf(sum('km'))}</b><span>${T('km')}</span></div>
+  <div class="kpi"><b>${fmtInt(sum('up'))}</b><span>${T('up')}</span></div><div class="kpi"><b>${fmtDur(sum('hours'))}</b><span>${T('hpTime')}</span></div>
+  <div class="kpi"><b>🐴 ${fmtInt(eh)}</b><span>kcal · ${T('eHay',{n:nf(eh/HAY_KCAL)})}</span></div><div class="kpi"><b>🧑 ${fmtInt(er)}</b><span>kcal · ${T('eBeer',{n:nf(er/BEER_KCAL)})}</span></div></div>
+ <h3>${T('kmPerMonth')}</h3><div class="bars" role="img" aria-label="${T('kmPerMonth')}">${months.map(m=>`<div class="bar" tabindex="0" title="${m.label}: ${nf(m.km)} km"><span class="bv">${m.km?nf(m.km):''}</span><i style="height:${Math.max(m.km/max*85,m.km?2:0)}%"></i><span class="bl">${m.label}</span></div>`).join('')}</div>
+ ${horses.length?`<h3>${T('myHorses')}</h3><div class="horses">${horses.map(x=>`<div class="horse"><b>${esc(x.h)}</b><span class="muted">${T(x.n===1?'ridden1':'riddenN',{n:x.n})} · ${nf(x.km)} km</span>
+  <label>${T('weight')} <input type="number" min="150" max="1100" step="10" value="${local.horses[x.h]||600}" data-horse="${esc(x.h)}"> kg</label></div>`).join('')}</div>`:''}
+ <h3>${T('hpLastRides')}</h3><div class="hplist">${local.log.slice(0,30).map(x=>`<div class="hprow"><a href="#/route/${encodeURIComponent(x.routeId)}">${esc(x.name)}</a><span class="muted">${new Date(x.date+'T00:00').toLocaleDateString(LOC)}${x.horse?' · '+esc(x.horse):''} · ${nf(x.km)} km</span><button class="linkbtn" data-unlog="${esc(x.id)}">${T('hpRemove')}</button></div>`).join('')}</div>`
+ :`<div class="empty"><strong>${T('hpEmptyT')}</strong>${T('hpEmpty')}<a class="btn primary" href="#/explore">${T('navExplore')}</a></div>`}
+ <p class="muted small">${T('hpLocalNote')}</p></section>${footHTML()}`;
+ bindFoot();
+ $('#home').querySelectorAll('[data-per]').forEach(b=>b.onclick=()=>{ui.hpPer=b.dataset.per;renderHoofprints()});
+ $('#home').querySelectorAll('[data-horse]').forEach(i=>i.onchange=()=>{const v=Math.min(1100,Math.max(150,+i.value||600));local.horses[i.dataset.horse]=v;saveLocal();renderHoofprints()});
+ $('#home').querySelectorAll('[data-unlog]').forEach(b=>b.onclick=()=>{local.log=local.log.filter(x=>x.id!==b.dataset.unlog);saveLocal();renderHoofprints()})}
 function detailHTML(r){const s=stats(r),rv=reviewsOf(r),a=avg(r),fav=local.favorites.includes(r.id),ph=photosOf(r);
  const surf=Object.entries(r.surfaces||{Unbekannt:100});const tot=surf.reduce((x,y)=>x+y[1],0)||1;const c0=r.coords[0];
  return`<div class="detail"><div class="dhead"><button class="btn ghost" id="back">${T('back')}</button><span class="sp"></span>
@@ -465,7 +509,7 @@ function openSave(d,existing){const s=stats({coords:d.coords});const ex=existing
  $('#sSave',m).onclick=async e=>{if($('#sWeb',m).value){m.close();return}const sf=[...m.querySelectorAll('[name=surf]:checked')].map(x=>x.value);const surfaces={};sf.forEach(k=>surfaces[k]=Math.round(100/sf.length));
   const r={id:uuid(),name:$('#sName',m).value.trim().slice(0,80)||T('untitled'),region:$('#sRegion',m).value.trim().slice(0,80),difficulty:$('#sDiff',m).value,surfaces:sf.length?surfaces:{Unbekannt:100},features:[...m.querySelectorAll('[name=feat]:checked')].map(x=>x.value),desc:$('#sDesc',m).value.trim().slice(0,800),coords:d.coords,source:d.source,createdAt:new Date().toISOString()};
   e.target.disabled=true;if(existing){try{const f={name:r.name,region:r.region,difficulty:r.difficulty,surfaces:r.surfaces,features:r.features,desc:r.desc};await backend.updateRoute(existing.id,f);m.close();drawRoutes();renderPanel();toast(T('changesSaved'))}catch(x){$('#sErr',m).textContent=x.message;e.target.disabled=false}return}
-  try{throttle();await backend.addRoute(r);local.mine.push(r.id);saveLocal();m.close();drawRoutes();select(r.id);toast(backend.online?T('published'):T('stored'))}catch(x){$('#sErr',m).textContent=x.message;e.target.disabled=false}}}
+  try{throttle();await backend.addRoute(r);local.mine.push(r.id);if(r.source==='Aufgezeichnet')logRide(r,new Date().toISOString().slice(0,10),local.lastHorse||'',r.id);saveLocal();m.close();drawRoutes();select(r.id);toast(backend.online?T('published'):T('stored'))}catch(x){$('#sErr',m).textContent=x.message;e.target.disabled=false}}}
 
 /* ---------- draw mode ---------- */
 let draftLayer=null,draftMarkers=[];
@@ -574,7 +618,7 @@ function openMenu(){const favN=local.favorites.filter(byId).length,mineN=allRout
  const d=document.createElement('div');d.className='drawer-bg';d.innerHTML=`<nav class="drawer" aria-label="${T('menu')}">
   <div class="dhd"><b>${T('menu')}</b><button class="btn ghost" data-close aria-label="${T('close')}">${ICON.x}</button></div>
   <a href="#/">${T('navHome')}</a><a href="#/explore">${T('navExplore')}</a>
-  <a href="#/saved">${T('tabFav')}<span class="count">${favN}</span></a><a href="#/mine">${T('tabMine')}<span class="count">${mineN}</span></a>
+  <a href="#/hoofprints">${T('myHoofprints')}<span class="count">${local.log.length}</span></a><a href="#/saved">${T('tabFav')}<span class="count">${favN}</span></a><a href="#/mine">${T('tabMine')}<span class="count">${mineN}</span></a>
   <hr><button data-act="import">${T('import')}</button><button data-act="draw">${T('draw')}</button><button data-act="rec">${T('record')}</button>
   <hr><button data-act="lang">${T('langName')}</button><button data-act="about">${T('about')}</button><a href="#/impressum">${T('imprint')}</a><a href="#/datenschutz">${T('privacy')}</a>
   <div class="dfoot"><span class="muted">Version ${APP_VERSION}</span> <span class="mode">${backend.online?T('modeShared'):T('modeLocal')}</span> <span class="muted">${backend.online?T('modeSharedTitle'):T('modeLocalTitle')}</span></div></nav>`;
@@ -589,13 +633,14 @@ function switchLang(){try{localStorage.setItem('hoofprint.lang',LANG==='de'?'en'
 
 /* ---------- pages: #/  #/explore  #/saved  #/mine  #/route/<id> ---------- */
 let view=null,mapReady=false;
-function showView(v){view=v;$('#home').hidden=v!=='home';$('#explore').hidden=v!=='explore';
+function showView(v){view=v;$('#home').hidden=!['home','hoofprints','legal'].includes(v);$('#explore').hidden=v!=='explore';
  document.querySelectorAll('.topnav a').forEach(a=>a.classList.toggle('on',a.dataset.view===v||(a.dataset.view==='saved'&&ui.tab==='fav'&&v==='explore')));
  if(v==='explore'){if(!mapReady){mapReady=true;try{initMap()}catch(e){console.error(e);$('#map').innerHTML=`<div class="maperr">${T('mapFail')}</div>`}drawRoutes();fitAll()}else if(map)map.invalidateSize()}}
 function router(){if(ui.draft)endDraw();if(rec&&!location.hash.startsWith('#/explore'))recPause();
  const h=location.hash.replace(/^#\/?/,''),[path,qs]=h.split('?'),parts=path.split('/'),params=new URLSearchParams(qs||'');
  if(!parts[0]){showView('home');renderHome();window.scrollTo(0,0);return}
- if(parts[0]==='impressum'||parts[0]==='datenschutz'){showView('home');renderLegal(parts[0]);window.scrollTo(0,0);return}
+ if(parts[0]==='hoofprints'){showView('hoofprints');renderHoofprints();window.scrollTo(0,0);return}
+ if(parts[0]==='impressum'||parts[0]==='datenschutz'){showView('legal');renderLegal(parts[0]);window.scrollTo(0,0);return}
  if(parts[0]==='route'){showView('explore');showRoute(decodeURIComponent(parts[1]||''));return}
  ui.sel=null;ui.tab={saved:'fav',mine:'mine'}[parts[0]]||'discover';
  const fresh=location.hash!==ui.lastList;ui.lastList=location.hash;
@@ -610,9 +655,9 @@ function router(){if(ui.draft)endDraw();if(rec&&!location.hash.startsWith('#/exp
 function fitVisible(){if(!map)return;const b=L.latLngBounds([]);visibleList(true).forEach(r=>r.coords.forEach(p=>b.extend([p[0],p[1]])));if(b.isValid())map.fitBounds(b,{padding:[30,30],maxZoom:13,animate:false})}
 
 /* ---------- start ---------- */
-async function boot(){ui.loading=true;ui.loadError=null;if(view==='home')renderHome();else renderPanel();
+async function boot(){ui.loading=true;ui.loadError=null;if(view==='home')renderHome();else if(view==='explore')renderPanel();
  try{await backend.load()}catch(e){ui.loadError=backend.online?T('dbDown'):String(e.message||e)}
- ui.loading=false;if(view==='home')renderHome();else{renderPanel();drawRoutes();if(!ui.sel&&!ui.place)fitAll();else if(ui.sel)showRoute(ui.sel)}}
+ ui.loading=false;if(view==='home')renderHome();else if(view!=='explore'){}else{renderPanel();drawRoutes();if(!ui.sel&&!ui.place)fitAll();else if(ui.sel)showRoute(ui.sel)}}
 /* static page text */
 document.documentElement.lang=LANG;document.title=T('pageTitle');
 document.querySelectorAll('[data-i18n]').forEach(el=>el.textContent=T(el.dataset.i18n));
