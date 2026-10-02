@@ -330,11 +330,12 @@ function ridesHTML(r){if(!backend.ridesReady)return'';const rs=ridesOf(r),all=ui
  return`<section class="rides"><div class="ridehead"><button class="btn primary big" id="rodeIt">🐴 ${T('rodeIt')}</button>
  <span class="muted">${rs.length?T(rs.length===1?'ridden1':'riddenN',{n:rs.length})+' · '+T('lastRidden',{when:ago(rs[0].date)}):T('noRidesYet')}</span></div>
  ${rs.length?`<h4>${T('recentRides')}</h4>${(all?rs:rs.slice(0,3)).map(rideLine).join('')}${rs.length>3&&!all?`<button class="linkbtn" id="allRides">${T('showAllRides',{n:rs.length})}</button>`:''}`:''}</section>`}
-function openRode(r){const today=new Date().toISOString().slice(0,10),picked=new Set();
+function openRode(r){const today=new Date().toISOString().slice(0,10),picked=new Set();let stars=0;
  const m=modal(`<h3>${T('rodeTitle',{name:esc(r.name)})}</h3>
  <div class="row2"><label class="field">${T('rideDate')}<input class="txt" type="date" id="rdDate" value="${today}" max="${today}"></label>
  <label class="field">${T('horseName')}<input class="txt" id="rdHorse" maxlength="40" value="${esc(local.lastHorse||'')}" placeholder="${T('horsePh')}"></label></div>
  <label class="field">${T('yourName')}<input class="txt" id="rdName" maxlength="60" value="${esc(local.lastName||'')}" placeholder="${T('nickPh')}"></label>
+ <div class="field">${T('rideStars')}<div class="starpick" id="rdStars" role="radiogroup" aria-label="${T('stars')}">${[1,2,3,4,5].map(i=>`<button type="button" data-v="${i}" aria-label="${T('nStars',{n:i})}">★</button>`).join('')}</div></div>
  <div class="field">${T('trailNow')}<div class="chips">${Object.entries(CONDS).map(([k,i])=>`<button type="button" class="chip" data-cond="${k}" aria-pressed="false">${i} ${T('cond_'+k)}</button>`).join('')}</div></div>
  <label class="field">${T('rideNote')}<textarea class="txt" id="rdNote" maxlength="300" placeholder="${T('rideNotePh')}"></textarea></label>
  <label class="hp" aria-hidden="true">Website<input id="rdWeb" tabindex="-1" autocomplete="off"></label>
@@ -342,10 +343,14 @@ function openRode(r){const today=new Date().toISOString().slice(0,10),picked=new
  m.querySelectorAll('[data-cond]').forEach(b=>b.onclick=()=>{const k=b.dataset.cond;picked.has(k)?picked.delete(k):picked.add(k);
   if(k==='dry'&&picked.has('dry'))picked.delete('muddy');if(k==='muddy'&&picked.has('muddy'))picked.delete('dry');
   m.querySelectorAll('[data-cond]').forEach(x=>x.setAttribute('aria-pressed',picked.has(x.dataset.cond)))});
+ m.querySelectorAll('#rdStars button').forEach(b=>b.onclick=()=>{const v=+b.dataset.v;stars=stars===v?0:v;m.querySelectorAll('#rdStars button').forEach(x=>x.classList.toggle('on',+x.dataset.v<=stars))});
  $('#rdSave',m).onclick=async e=>{if($('#rdWeb',m).value)return;const date=$('#rdDate',m).value||today;if(date>today){$('#rdErr',m).textContent=T('rideFuture');return}
   e.target.disabled=true;
   try{throttle();const v={id:uuid(),routeId:r.id,date,name:$('#rdName',m).value.trim().slice(0,60),horse:$('#rdHorse',m).value.trim().slice(0,40),conditions:[...picked],note:$('#rdNote',m).value.trim().slice(0,300)};
-   await backend.addRide(v);local.myRides.push(v.id);local.lastHorse=v.horse;local.lastName=v.name;saveLocal();m.close();toast(T('rideThanks'));renderPanel()}
+   await backend.addRide(v);local.myRides.push(v.id);local.lastHorse=v.horse;local.lastName=v.name;saveLocal();
+   /* stars given here also count as a normal review, with the note as its text */
+   if(stars){const rv={id:uuid(),routeId:r.id,name:v.name||T('anon'),stars,text:v.note,date:new Date().toISOString()};try{await backend.addReview(rv);local.myReviews.push(rv.id);saveLocal()}catch(x){toast(x.message)}}
+   m.close();toast(T('rideThanks'));renderPanel()}
   catch(x){$('#rdErr',m).textContent=x.message;e.target.disabled=false}}}
 function detailHTML(r){const s=stats(r),rv=reviewsOf(r),a=avg(r),fav=local.favorites.includes(r.id),ph=photosOf(r);
  const surf=Object.entries(r.surfaces||{Unbekannt:100});const tot=surf.reduce((x,y)=>x+y[1],0)||1;const c0=r.coords[0];
