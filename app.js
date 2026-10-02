@@ -135,30 +135,34 @@ function initMap(){
  map.on('click',e=>{if(ui.draft)addDraftPoint(e.latlng)});
  const mq=matchMedia('(prefers-color-scheme: dark)');mq.addEventListener?.('change',styleRoutes);
 }
-/* Snack bars, restaurants, cafés and beer gardens from OpenStreetMap (Overpass API), shown on demand */
+/* "Bierpause": snack bars, restaurants, cafés and beer gardens from OpenStreetMap (Overpass API), shown on demand */
 const FOOD_KIND={restaurant:'🍽️',fast_food:'🥨',cafe:'☕',biergarten:'🍺'};
-let food={on:false,layer:null,btn:null,seen:{},timer:null,busy:false};
+const OVERPASS=['https://overpass-api.de/api/interpreter','https://overpass.private.coffee/api/interpreter','https://overpass.kumi.systems/api/interpreter'];
+const FOOD_MINZOOM=11;
+let food={on:false,layer:null,btn:null,hint:null,seen:{},timer:null,busy:false,again:false};
 function initFood(){food.layer=L.layerGroup().addTo(map);
- const C=L.Control.extend({onAdd(){const d=L.DomUtil.create('div','leaflet-bar foodctl');d.innerHTML=`<button type="button" aria-pressed="false" title="${T('foodTitle')}">🍽️ <span>${T('food')}</span></button>`;L.DomEvent.disableClickPropagation(d);food.btn=d.querySelector('button');food.btn.onclick=toggleFood;return d}});
+ const C=L.Control.extend({onAdd(){const d=L.DomUtil.create('div','foodctl');d.innerHTML=`<button type="button" aria-pressed="false" title="${T('foodTitle')}">🍺 <span>${T('food')}</span></button><div class="foodhint" role="status" hidden></div>`;L.DomEvent.disableClickPropagation(d);L.DomEvent.disableScrollPropagation(d);food.btn=d.querySelector('button');food.hint=d.querySelector('.foodhint');food.btn.onclick=toggleFood;return d}});
  new C({position:'topleft'}).addTo(map);
  map.on('moveend',()=>{if(food.on){clearTimeout(food.timer);food.timer=setTimeout(loadFood,400)}});
  if(local.food)toggleFood()}
+function foodHint(txt){food.hint.textContent=txt||'';food.hint.hidden=!txt}
 function toggleFood(){food.on=!food.on;food.btn.setAttribute('aria-pressed',food.on);local.food=food.on;saveLocal();
- if(food.on)loadFood();else{food.layer.clearLayers();food.seen={}}}
-async function loadFood(){if(!food.on||food.busy)return;if(map.getZoom()<12){toast(T('foodZoom'));return}
+ if(food.on)loadFood();else{food.layer.clearLayers();food.seen={};foodHint('')}}
+async function overpass(q){let last;for(const url of OVERPASS){try{const r=await fetch(url,{method:'POST',body:'data='+encodeURIComponent(q),headers:{'Content-Type':'application/x-www-form-urlencoded'}});if(r.ok)return await r.json();last=new Error('HTTP '+r.status)}catch(e){last=e}}throw last}
+async function loadFood(){if(!food.on)return;if(food.busy){food.again=true;return}
+ if(map.getZoom()<FOOD_MINZOOM){foodHint(T('foodZoom'));return}
  const b=map.getBounds().pad(.15),bb=[b.getSouth(),b.getWest(),b.getNorth(),b.getEast()].map(x=>x.toFixed(4)).join(',');
- const q=`[out:json][timeout:20];nwr["amenity"~"^(restaurant|fast_food|cafe|biergarten)$"](${bb});out center 400;`;
- food.busy=true;food.btn.classList.add('busy');
- try{const r=await fetch('https://overpass-api.de/api/interpreter',{method:'POST',body:'data='+encodeURIComponent(q),headers:{'Content-Type':'application/x-www-form-urlencoded'}});if(!r.ok)throw 0;const j=await r.json();
-  if(!food.on)return;let n=0;
-  j.elements.forEach(e=>{const id=e.type+e.id;if(food.seen[id])return;const la=e.lat??e.center?.lat,lo=e.lon??e.center?.lon;if(la==null)return;food.seen[id]=1;n++;
+ const q=`[out:json][timeout:25];nwr["amenity"~"^(restaurant|fast_food|cafe|biergarten)$"](${bb});out center 400;`;
+ food.busy=true;food.btn.classList.add('busy');foodHint(T('foodLoading'));
+ try{const j=await overpass(q);if(!food.on)return;
+  j.elements.forEach(e=>{const id=e.type+e.id;if(food.seen[id])return;const la=e.lat??e.center?.lat,lo=e.lon??e.center?.lon;if(la==null)return;food.seen[id]=1;
    const t=e.tags||{},k=t.amenity;
    const m=L.marker([la,lo],{icon:L.divIcon({className:'',html:`<div class="foodpin">${FOOD_KIND[k]||'🍽️'}</div>`,iconSize:[26,26],iconAnchor:[13,13]}),title:t.name||T('food_'+k),keyboard:false});
    m.bindPopup(`<b>${esc(t.name||T('food_'+k))}</b><br><span class="muted">${esc(T('food_'+k))}</span>${t.opening_hours?`<br>${T('foodHours')}: ${esc(t.opening_hours)}`:''}${t.website?`<br><a href="${esc(/^https?:/.test(t.website)?t.website:'https://'+t.website)}" target="_blank" rel="noopener">${T('foodWeb')}</a>`:''}<br><a href="https://www.openstreetmap.org/${e.type}/${e.id}" target="_blank" rel="noopener">${T('foodOsm')}</a>`);
    m.addTo(food.layer)});
-  if(!Object.keys(food.seen).length)toast(T('foodNone'))}
- catch(e){toast(T('foodDown'))}
- finally{food.busy=false;food.btn.classList.remove('busy')}}
+  foodHint(j.elements.length?'':T('foodNone'))}
+ catch(e){console.warn('Overpass',e);foodHint(T('foodDown'))}
+ finally{food.busy=false;food.btn.classList.remove('busy');if(food.again){food.again=false;loadFood()}}}
 function fitAll(){if(!map)return;const b=L.latLngBounds([]);allRoutes().forEach(r=>r.coords.forEach(p=>b.extend([p[0],p[1]])));if(b.isValid())map.fitBounds(b,{padding:[30,30],maxZoom:13,animate:false})}
 function drawRoutes(){if(!map)return;Object.values(routeLayers).forEach(g=>map.removeLayer(g));Object.values(startMarkers).forEach(m=>map.removeLayer(m));routeLayers={};startMarkers={};
  (ui.sel&&byId(ui.sel)?[byId(ui.sel)]:visibleList(true)).forEach(r=>{const ll=r.coords.map(p=>[p[0],p[1]]);const casing=L.polyline(ll,{weight:8,opacity:.9,interactive:false});const ln=L.polyline(ll,{weight:4.5,opacity:1});const g=L.layerGroup([casing,ln]).addTo(map);g._c=casing;g._l=ln;ln.on('click',()=>select(r.id));ln.bindTooltip(r.name,{sticky:true});routeLayers[r.id]=g;
