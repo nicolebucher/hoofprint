@@ -128,7 +128,7 @@ function starStr(v){const f=Math.round(v);return`<span class="hoofs" role="img" 
 const ui={tab:'discover',q:'',diff:new Set(),feats:new Set(),maxKm:40,sort:'rating',inView:false,sel:null,draft:null,loading:true,loadError:null};
 
 /* ---------- map ---------- */
-let map=null,routeLayers={},startMarkers={};
+let map=null,routeLayers={},startMarkers={},ridingTiles=null;
 // Start marker: the brand horseshoe (open at the top, with nail holes).
 const HORSESHOE='<svg viewBox="-11 -11 22 22" aria-hidden="true"><path class="shoe" d="M-4.3-7.6C-7.4-5.6-8.4-1.4-7.6 2.6C-6.8 6.6-3.8 8.6 0 8.6C3.8 8.6 6.8 6.6 7.6 2.6C8.4-1.4 7.4-5.6 4.3-7.6"/><g class="nails"><circle cx="-7.3" cy="-2.6" r=".8"/><circle cx="-7" cy="2.4" r=".8"/><circle cx="7.3" cy="-2.6" r=".8"/><circle cx="7" cy="2.4" r=".8"/></g></svg>';
 function initMap(){
@@ -136,9 +136,9 @@ function initMap(){
  map=L.map('map',{zoomControl:false,minZoom:4,maxZoom:18}).setView([51.2,10.4],6);
  const osm=L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© <a href="https://www.openstreetmap.org/copyright">'+T('attrOsm')+'</a>'});
  const topo=L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png',{maxZoom:17,attribution:'© <a href="https://opentopomap.org">OpenTopoMap</a> (CC-BY-SA), © '+T('attrOsm')});
- const riding=L.tileLayer('https://tile.waymarkedtrails.org/riding/{z}/{x}/{y}.png',{maxZoom:18,opacity:.9,attribution:T('attrRiding')+' © <a href="https://riding.waymarkedtrails.org">Waymarked Trails</a>'});
- osm.addTo(map);riding.addTo(map);
- L.control.layers({[T('layerStreet')]:osm,[T('layerTopo')]:topo},{[T('layerRiding')]:riding},{position:'topright',collapsed:true}).addTo(map);
+ridingTiles=L.tileLayer('https://tile.waymarkedtrails.org/riding/{z}/{x}/{y}.png',{maxZoom:18,opacity:.9,attribution:T('attrRiding')+' © <a href="https://riding.waymarkedtrails.org">Waymarked Trails</a>'});
+ osm.addTo(map);
+ L.control.layers({[T('layerStreet')]:osm,[T('layerTopo')]:topo},{},{position:'topright',collapsed:true}).addTo(map);
  L.control.zoom({position:'topright'}).addTo(map);
  L.control.scale({imperial:false,position:'bottomleft'}).addTo(map);
  initPoi();
@@ -154,6 +154,7 @@ const OVERPASS=[...(VIA_SITE?['api/osm?service=overpass&','osm/overpass?']:[]),'
 const POI_MINZOOM=12;
 const APP_VERSION=(document.querySelector('script[src*="app.js"]')?.src.match(/v=([^&]+)/)||[])[1]||'dev';
 const POI_DEFS={
+ trails:{lines:true,query:bb=>`way["highway"="bridleway"](${bb});way["horse"="designated"](${bb});`},
  food:{icon:'🍽️',query:bb=>`nwr["amenity"~"^(restaurant|fast_food|cafe|biergarten|pub|ice_cream)$"](${bb});nwr["shop"="kiosk"](${bb});nwr["tourism"~"^(hotel|guest_house|alpine_hut)$"]["name"~"gasthaus|gasthof|wirtshaus|restaurant|einkehr|krug|schänke|schenke|baude",i](${bb});`,
   kind:t=>({restaurant:'restaurant',fast_food:'fast_food',cafe:'cafe',biergarten:'biergarten',pub:'pub',ice_cream:'ice_cream'})[t.amenity]||(t.shop==='kiosk'?'kiosk':'inn'),
   icons:{restaurant:'🍽️',fast_food:'🥨',cafe:'☕',biergarten:'🍺',pub:'🍺',ice_cream:'🍦',kiosk:'🥤',inn:'🍽️'}},
@@ -171,6 +172,7 @@ function initPoi(){const box=L.DomUtil.create('div','poictl');L.DomEvent.disable
 function poiHint(P,txt,n){P.hint.textContent=txt||'';P.hint.hidden=!txt;P.cnt.textContent=n||'';P.cnt.hidden=!n}
 /* nothing is searched until someone ticks the box; the choice is not remembered between visits */
 function togglePoi(P){P.on=P.box.checked;P.btn.classList.toggle('on',P.on);
+ if(P.def.lines&&ridingTiles){if(P.on)ridingTiles.addTo(map);else map.removeLayer(ridingTiles)}
  if(P.on)loadPoi(P);else{P.layer.clearLayers();P.seen={};poiHint(P,'');P.btn.title=T(P.key+'Title')}}
 /* Ask all servers at once and take the first good answer; public Overpass servers are often busy */
 async function overpass(q){const ctl=new AbortController(),t=setTimeout(()=>ctl.abort(),18000);
@@ -196,7 +198,8 @@ async function loadPoi(P){if(!P.on)return;if(P.busy){P.again=true;return}
  if(map.getZoom()<POI_MINZOOM){poiHint(P,T('poiZoom'));return}
  const b=map.getBounds().pad(.1),bb=[b.getSouth(),b.getWest(),b.getNorth(),b.getEast()].map(x=>x.toFixed(4)).join(',');
  P.busy=true;P.btn.classList.add('busy');poiHint(P,T('poiLoading'));
- try{let j;try{j=await overpass(`[out:json][timeout:20];(${P.def.query(bb)});out center 300;`)}
+ try{if(P.def.lines){await loadTrails(P,bb);return}
+  let j;try{j=await overpass(`[out:json][timeout:20];(${P.def.query(bb)});out center 300;`)}
   catch(e){console.warn('Overpass',e);P.err='Overpass: '+((e.errors||[e]).map(x=>x.message||x.name).join(', '));poiHint(P,T('poiFallback'));j=await nominatimPoi(P,b)}
   if(!P.on)return;
   j.elements.forEach(e=>{const id=e.type+e.id;if(P.seen[id])return;const la=e.lat??e.center?.lat,lo=e.lon??e.center?.lon;if(la==null)return;P.seen[id]=1;
@@ -207,6 +210,17 @@ async function loadPoi(P){if(!P.on)return;if(P.busy){P.again=true;return}
   const n=P.layer.getLayers().length;poiHint(P,n?'':T(P.key+'None'),n);P.btn.title=n?T(n===1?P.key+'N1':P.key+'N',{n}):T(P.key+'Title')}
  catch(e){console.warn('POI',e);poiHint(P,T('poiDown')+' ('+(P.err||'')+(e.message?' / '+e.message:'')+')')}
  finally{P.busy=false;P.btn.classList.remove('busy');if(P.again){P.again=false;loadPoi(P)}}}
+/* Bridleways and ways signed for horses, drawn as dashed lines. Lines cannot come from the place search, so there is no fallback. */
+async function loadTrails(P,bb){let j;
+ try{j=await overpass(`[out:json][timeout:25];(${P.def.query(bb)});out tags geom 1500;`)}
+ catch(e){P.err='Overpass: '+((e.errors||[e]).map(x=>x.message||x.name).join(', '));throw new Error('')}
+ if(!P.on)return;
+ j.elements.forEach(e=>{const id=e.type+e.id;if(P.seen[id]||!e.geometry)return;P.seen[id]=1;const t=e.tags||{};
+  const ln=L.polyline(e.geometry.map(g=>[g.lat,g.lon]),{color:cssVar('--trail'),weight:3.5,opacity:.95,dashArray:'7 5',lineCap:'round'});
+  const surf=t.surface?T('trailSurface')+': '+esc(t.surface):'';
+  ln.bindPopup(`<b>${esc(t.name||T('trails_way'))}</b>${surf?'<br><span class="muted">'+surf+'</span>':''}<br><a href="https://www.openstreetmap.org/way/${e.id}" target="_blank" rel="noopener">${T('poiOsm')}</a>`);
+  ln.addTo(P.layer)});
+ const n=P.layer.getLayers().length;poiHint(P,n?'':T('trailsNone'),n);P.btn.title=n?T(n===1?'trailsN1':'trailsN',{n}):T('trailsTitle')}
 function fitAll(){if(!map)return;const b=L.latLngBounds([]);allRoutes().forEach(r=>r.coords.forEach(p=>b.extend([p[0],p[1]])));if(b.isValid())map.fitBounds(b,{padding:[30,30],maxZoom:13,animate:false})}
 function drawRoutes(){if(!map)return;Object.values(routeLayers).forEach(g=>map.removeLayer(g));Object.values(startMarkers).forEach(m=>map.removeLayer(m));routeLayers={};startMarkers={};
  (ui.sel&&byId(ui.sel)?[byId(ui.sel)]:visibleList(true)).forEach(r=>{const ll=r.coords.map(p=>[p[0],p[1]]);const casing=L.polyline(ll,{weight:8,opacity:.9,interactive:false});const ln=L.polyline(ll,{weight:4.5,opacity:1});const g=L.layerGroup([casing,ln]).addTo(map);g._c=casing;g._l=ln;ln.on('click',()=>select(r.id));ln.bindTooltip(r.name,{sticky:true});routeLayers[r.id]=g;
@@ -233,6 +247,7 @@ const ICON={
  car:'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 17h14M4 17v-4l2-5h12l2 5v4M7 17v2M17 17v2"/><circle cx="8" cy="13.5" r=".6"/><circle cx="16" cy="13.5" r=".6"/></svg>',
  check:'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12.5l5 5L20 6.5"/></svg>',
  food:'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 3v8a2 2 0 0 0 2 2M11 3v8a2 2 0 0 1-2 2v8M9 3v6M17 3c-2 0-3 3-3 6s1 3 3 3v9"/></svg>',
+ trails:'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 21c0-4 4-5 6-8s-1-6 2-9" stroke-dasharray="3 3"/><circle cx="14" cy="4" r="1.6" fill="currentColor" stroke="none"/></svg>',
  stations:'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11l9-7 9 7M5 9.5V20h14V9.5M10 20v-5h4v5"/></svg>',
  x:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>'
 };
