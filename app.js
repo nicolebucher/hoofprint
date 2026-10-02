@@ -52,7 +52,7 @@ SEED.forEach((r,i)=>{r.source='Beispiel';r.createdAt='2026-0'+(i+1)+'-01';r.seed
 /* ---------- this device (favourites, own posts, device id) ---------- */
 const KEY='hoofprint.v1';
 const uuid=()=>crypto.randomUUID?crypto.randomUUID():'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g,c=>{const r=Math.random()*16|0;return(c==='x'?r:(r&3|8)).toString(16)});
-let local={deviceId:null,favorites:[],mine:[],myReviews:[],myPhotos:[],posts:[],routes:[],reviews:[],photos:[]};
+let local={deviceId:null,favorites:[],mine:[],myReviews:[],myPhotos:[],myRides:[],posts:[],routes:[],reviews:[],photos:[],rides:[]};
 try{const raw=localStorage.getItem(KEY)||localStorage.getItem('hufspur.v2');if(raw)local=Object.assign(local,JSON.parse(raw))}catch(e){}
 function saveLocal(){try{localStorage.setItem(KEY,JSON.stringify(local));return true}catch(e){return false}}
 if(!local.deviceId){local.deviceId=uuid();saveLocal()}
@@ -62,7 +62,7 @@ function throttle(){const now=Date.now();local.posts=local.posts.filter(t=>now-t
 /* ---------- shared data: Supabase when configured, otherwise this browser ---------- */
 const CFG=window.HOOFPRINT_CONFIG||window.HUFSPUR_CONFIG||{};
 const sb=(CFG.supabaseUrl&&CFG.supabaseAnonKey&&window.supabase)?window.supabase.createClient(CFG.supabaseUrl,CFG.supabaseAnonKey,{auth:{persistSession:false}}):null;
-const shared={routes:[],reviews:[],photos:[]};
+const shared={routes:[],reviews:[],photos:[],rides:[]};
 const publicUrl=path=>`${CFG.supabaseUrl}/storage/v1/object/public/photos/${path}`;
 function fail(error){if(!error)return;const m=String(error.message||error);if(/rate|too many/i.test(m))throw new Error(T('rateLimited'));if(error.code==='PGRST202'||/could not find the function|schema cache/i.test(m))throw new Error(T('dbUpdateNeeded'));throw new Error(T('saveFailed')+m)}
 const backend=sb?{
@@ -74,7 +74,12 @@ const backend=sb?{
   for(const x of[r,v,p])if(x.error)throw x.error;
   shared.routes=r.data.map(x=>({id:x.id,name:x.name,region:x.region,difficulty:x.difficulty,surfaces:x.surfaces,features:x.features||[],desc:x.description,coords:x.coords,source:x.source,createdAt:x.created_at}));
   shared.reviews=v.data.map(x=>({id:x.id,routeId:x.route_id,name:x.name,stars:x.stars,text:x.text,date:x.created_at}));
-  shared.photos=p.data.map(x=>({id:x.id,routeId:x.route_id,url:publicUrl(x.path)}))},
+  shared.photos=p.data.map(x=>({id:x.id,routeId:x.route_id,url:publicUrl(x.path)}));
+  /* rides come from a later database update, so a missing table must not break the page */
+  const d=await sb.from('rides').select('id,route_id,name,horse,ridden_on,conditions,note,created_at').order('ridden_on',{ascending:false}).order('created_at',{ascending:false}).limit(10000);
+  backend.ridesReady=!d.error;shared.rides=d.error?[]:d.data.map(x=>({id:x.id,routeId:x.route_id,name:x.name,horse:x.horse,date:x.ridden_on,conditions:x.conditions||[],note:x.note}))},
+ ridesReady:false,
+ async addRide(v){const{error}=await sb.from('rides').insert({id:v.id,route_id:v.routeId,name:v.name,horse:v.horse,ridden_on:v.date,conditions:v.conditions,note:v.note,device_id:local.deviceId});if(error&&/rides|relation|schema cache/i.test(error.message||''))throw new Error(T('dbUpdateNeeded'));fail(error);shared.rides.unshift(v)},
  async addRoute(r){const{error}=await sb.from('routes').insert({id:r.id,name:r.name,region:r.region,difficulty:r.difficulty,surfaces:r.surfaces,features:r.features,description:r.desc,coords:r.coords,source:r.source,device_id:local.deviceId});fail(error);shared.routes.unshift(r)},
  async addReview(v){const{error}=await sb.from('reviews').insert({id:v.id,route_id:v.routeId,name:v.name,stars:v.stars,text:v.text,device_id:local.deviceId});fail(error);shared.reviews.unshift(v)},
  async addPhoto(routeId,blob){const id=uuid(),path=`${routeId}/${id}.jpg`;const up=await sb.storage.from('photos').upload(path,blob,{contentType:'image/jpeg'});fail(up.error);
@@ -85,7 +90,9 @@ const backend=sb?{
  async report(kind,id,reason){const{error}=await sb.from('reports').insert({kind,target_id:id,reason});fail(error)}
 }:{
  online:false,
- async load(){shared.routes=local.routes;shared.reviews=local.reviews;shared.photos=local.photos},
+ async load(){shared.routes=local.routes;shared.reviews=local.reviews;shared.photos=local.photos;shared.rides=local.rides},
+ ridesReady:true,
+ async addRide(v){local.rides.unshift(v);if(!saveLocal()){local.rides.shift();throw new Error(T('storageFull'))}},
  async addRoute(r){local.routes.unshift(r);if(!saveLocal()){local.routes.shift();throw new Error(T('storageFull'))}},
  async addReview(v){local.reviews.unshift(v);if(!saveLocal()){local.reviews.shift();throw new Error(T('storageFull'))}},
  async addPhoto(routeId,blob){const p={id:uuid(),routeId,url:await blobToDataURL(blob)};local.photos.unshift(p);if(!saveLocal()){local.photos.shift();throw new Error(T('photoStorageFull'))}return p},
@@ -95,9 +102,9 @@ const backend=sb?{
  async report(){}
 };
 function dropShared(kind,id){const pick=a=>a.filter(x=>x.id!==id);
- if(kind==='route'){const keep=x=>x.routeId!==id;shared.routes=pick(shared.routes);shared.reviews=shared.reviews.filter(keep);shared.photos=shared.photos.filter(keep)}
- if(kind==='review')shared.reviews=pick(shared.reviews);if(kind==='photo')shared.photos=pick(shared.photos);
- if(!backend.online){local.routes=shared.routes;local.reviews=shared.reviews;local.photos=shared.photos}}
+ if(kind==='route'){const keep=x=>x.routeId!==id;shared.routes=pick(shared.routes);shared.reviews=shared.reviews.filter(keep);shared.photos=shared.photos.filter(keep);shared.rides=shared.rides.filter(keep)}
+ if(kind==='review')shared.reviews=pick(shared.reviews);if(kind==='photo')shared.photos=pick(shared.photos);if(kind==='ride')shared.rides=pick(shared.rides);
+ if(!backend.online){local.routes=shared.routes;local.reviews=shared.reviews;local.photos=shared.photos;local.rides=shared.rides}}
 function blobToDataURL(b){return new Promise((res,rej)=>{const fr=new FileReader();fr.onload=()=>res(fr.result);fr.onerror=rej;fr.readAsDataURL(b)})}
 
 /* ---------- route model ---------- */
@@ -310,6 +317,36 @@ function bindEnergy(s){const hk=$('#eHk'),rk=$('#eRk');if(!hk)return;
   $('#eHkV').textContent=hk.value+' kg';document.querySelectorAll('[data-hk]').forEach(b=>b.setAttribute('aria-pressed',b.dataset.hk===hk.value));$('#eRkV').textContent=rk.value+' kg';$('#eHorse').textContent=fmtInt(e.horse)+' kcal';$('#eRider').textContent=fmtInt(e.rider)+' kcal';
   $('#eHay').textContent=T('eHay',{n:(e.horse/HAY_KCAL).toLocaleString(LOC,{maximumFractionDigits:1})});$('#eBeer').textContent=T('eBeer',{n:(e.rider/BEER_KCAL).toLocaleString(LOC,{maximumFractionDigits:1})})};
  hk.oninput=upd;rk.oninput=upd;document.querySelectorAll('[data-hk]').forEach(b=>b.onclick=()=>{hk.value=b.dataset.hk;upd()})}
+/* "Geritten!": riders log that they rode a route, with horse and current trail conditions */
+const CONDS={dry:'☀️',muddy:'💧',highwater:'🌊',overgrown:'🌿',blocked:'⛔',mowed:'🌾'};
+const ridesOf=r=>shared.rides.filter(x=>x.routeId===r.id).sort((a,b)=>String(b.date).localeCompare(String(a.date)));
+function ago(d){const days=Math.round((new Date(new Date().toDateString())-new Date(d+'T00:00'))/864e5);
+ if(days<=0)return T('today');if(days===1)return T('yesterday');if(days<14)return T('daysAgo',{n:days});if(days<60)return T('weeksAgo',{n:Math.round(days/7)});
+ return new Date(d+'T00:00').toLocaleDateString(LOC,{month:'long',year:'numeric'})}
+function rideLine(x){return`<div class="ride"><div><b>${esc(x.name||T('anonRider'))}</b>${x.horse?` ${T('withHorse',{horse:esc(x.horse)})}`:''} <span class="muted">· ${ago(x.date)}</span></div>
+ ${x.conditions.length?`<div class="conds">${x.conditions.filter(c=>CONDS[c]).map(c=>`<span>${CONDS[c]} ${T('cond_'+c)}</span>`).join('')}</div>`:''}${x.note?`<p>${esc(x.note)}</p>`:''}
+ ${local.myRides.includes(x.id)?`<button class="linkbtn" data-delride="${esc(x.id)}">${T('deleteMyRide')}</button>`:backend.online?`<button class="linkbtn" data-report="ride" data-target="${esc(x.id)}">${T('report')}</button>`:''}</div>`}
+function ridesHTML(r){if(!backend.ridesReady)return'';const rs=ridesOf(r),all=ui.allRides===r.id;
+ return`<section class="rides"><div class="ridehead"><button class="btn primary big" id="rodeIt">🐴 ${T('rodeIt')}</button>
+ <span class="muted">${rs.length?T(rs.length===1?'ridden1':'riddenN',{n:rs.length})+' · '+T('lastRidden',{when:ago(rs[0].date)}):T('noRidesYet')}</span></div>
+ ${rs.length?`<h4>${T('recentRides')}</h4>${(all?rs:rs.slice(0,3)).map(rideLine).join('')}${rs.length>3&&!all?`<button class="linkbtn" id="allRides">${T('showAllRides',{n:rs.length})}</button>`:''}`:''}</section>`}
+function openRode(r){const today=new Date().toISOString().slice(0,10),picked=new Set();
+ const m=modal(`<h3>${T('rodeTitle',{name:esc(r.name)})}</h3>
+ <div class="row2"><label class="field">${T('rideDate')}<input class="txt" type="date" id="rdDate" value="${today}" max="${today}"></label>
+ <label class="field">${T('horseName')}<input class="txt" id="rdHorse" maxlength="40" value="${esc(local.lastHorse||'')}" placeholder="${T('horsePh')}"></label></div>
+ <label class="field">${T('yourName')}<input class="txt" id="rdName" maxlength="60" value="${esc(local.lastName||'')}" placeholder="${T('nickPh')}"></label>
+ <div class="field">${T('trailNow')}<div class="chips">${Object.entries(CONDS).map(([k,i])=>`<button type="button" class="chip" data-cond="${k}" aria-pressed="false">${i} ${T('cond_'+k)}</button>`).join('')}</div></div>
+ <label class="field">${T('rideNote')}<textarea class="txt" id="rdNote" maxlength="300" placeholder="${T('rideNotePh')}"></textarea></label>
+ <label class="hp" aria-hidden="true">Website<input id="rdWeb" tabindex="-1" autocomplete="off"></label>
+ <div class="err" id="rdErr"></div><div class="actions"><button class="btn" data-close>${T('cancel')}</button><button class="btn primary" id="rdSave">${T('rideSave')}</button></div>`);
+ m.querySelectorAll('[data-cond]').forEach(b=>b.onclick=()=>{const k=b.dataset.cond;picked.has(k)?picked.delete(k):picked.add(k);
+  if(k==='dry'&&picked.has('dry'))picked.delete('muddy');if(k==='muddy'&&picked.has('muddy'))picked.delete('dry');
+  m.querySelectorAll('[data-cond]').forEach(x=>x.setAttribute('aria-pressed',picked.has(x.dataset.cond)))});
+ $('#rdSave',m).onclick=async e=>{if($('#rdWeb',m).value)return;const date=$('#rdDate',m).value||today;if(date>today){$('#rdErr',m).textContent=T('rideFuture');return}
+  e.target.disabled=true;
+  try{throttle();const v={id:uuid(),routeId:r.id,date,name:$('#rdName',m).value.trim().slice(0,60),horse:$('#rdHorse',m).value.trim().slice(0,40),conditions:[...picked],note:$('#rdNote',m).value.trim().slice(0,300)};
+   await backend.addRide(v);local.myRides.push(v.id);local.lastHorse=v.horse;local.lastName=v.name;saveLocal();m.close();toast(T('rideThanks'));renderPanel()}
+  catch(x){$('#rdErr',m).textContent=x.message;e.target.disabled=false}}}
 function detailHTML(r){const s=stats(r),rv=reviewsOf(r),a=avg(r),fav=local.favorites.includes(r.id),ph=photosOf(r);
  const surf=Object.entries(r.surfaces||{Unbekannt:100});const tot=surf.reduce((x,y)=>x+y[1],0)||1;const c0=r.coords[0];
  return`<div class="detail"><div class="dhead"><button class="btn ghost" id="back">${T('back')}</button><span class="sp"></span>
@@ -318,6 +355,7 @@ function detailHTML(r){const s=stats(r),rv=reviewsOf(r),a=avg(r),fav=local.favor
  <div class="dbody">
  <div class="dtitle"><div class="src">${esc(srcLabel(r.source))} · ${s.loop?T('loop'):T('oneway')}${isMine(r)?' · '+T('byYou'):''}</div><h2>${esc(r.name)}</h2><div class="meta">${esc(r.region||T('noRegion'))} · <span class="pill d-${esc(r.difficulty)}">${esc(diffLabel(r.difficulty))}</span> ${rv.length?` · <span class="stars">${starStr(a)}</span> ${a.toLocaleString(LOC,{maximumFractionDigits:1})}`:''}</div></div>
  <div class="kpis"><div class="kpi"><b>${fmtKm(s.km)}</b><span>${T('km')}</span></div><div class="kpi"><b>${fmtDur(s.hours)}</b><span>${T('duration')}</span></div><div class="kpi"><b>${s.hasE?fmtInt(s.up):'–'}</b><span>${T('up')}</span></div><div class="kpi"><b>${s.hasE?fmtInt(s.down):'–'}</b><span>${T('down')}</span></div></div>
+ ${ridesHTML(r)}
  <section class="prof"><h4>${T('profile')}</h4>${profileSVG(s)}</section>
  <section><h4>${T('surface')}</h4><div class="surf">${surf.map(([k,v])=>`<span style="flex:${+v||1};background:${SURF_COL[k]||'#999'}" title="${esc(surfLabel(k))} ${Math.round(v/tot*100)} %"></span>`).join('')}</div>
   <div class="legend">${surf.map(([k,v])=>`<span><i style="background:${SURF_COL[k]||'#999'}"></i>${esc(surfLabel(k))} ${Math.round(v/tot*100)} %</span>`).join('')}</div></section>
@@ -345,6 +383,8 @@ async function shareRoute(r){const url=location.origin+location.pathname+'#/rout
  if(navigator.share&&/^https?:/.test(location.protocol)){try{await navigator.share({title:r.name,text,url});return}catch(e){if(e.name==='AbortError')return}}
  try{await navigator.clipboard.writeText(url);toast(T('linkCopied'))}catch(e){modal(`<h3>${T('share')}</h3><p>${T('copyThis')}</p><textarea class="txt copybox" readonly>${esc(url)}</textarea><div class="actions"><button class="btn primary" data-close>${T('close')}</button></div>`).querySelector('textarea').select()}}
 function bindDetail(){const r=byId(ui.sel);let stars=0;bindEnergy(stats(r));
+ $('#rodeIt')?.addEventListener('click',()=>openRode(r));$('#allRides')?.addEventListener('click',()=>{ui.allRides=r.id;renderPanel()});
+ document.querySelectorAll('[data-delride]').forEach(b=>b.onclick=async()=>{try{await backend.remove('ride',b.dataset.delride);local.myRides=local.myRides.filter(x=>x!==b.dataset.delride);saveLocal();toast(T('rideDeleted'));renderPanel()}catch(x){toast(x.message)}});
  $('#share').onclick=()=>shareRoute(r);
  $('#back').onclick=back;
  $('#fav').onclick=()=>{const i=local.favorites.indexOf(r.id);i>=0?local.favorites.splice(i,1):local.favorites.push(r.id);saveLocal();toast(i>=0?T('favRemoved'):T('favAdded'));renderPanel()};
