@@ -1,6 +1,9 @@
-# Hufspur
+# Hoofprint
 
-Reitrouten finden, teilen und bewerten. Auf echten OpenStreetMap-Karten, mit einer zuschaltbaren Ebene für markierte Reitwege. Routen kommen als GPX, KML oder GeoJSON aus Komoot, Strava, Garmin, Equilab oder Outdooractive. Es braucht kein Benutzerkonto.
+*Find, share and rate horse riding routes. Available in English and German (language follows the browser; switch with the EN/DE button).*
+
+
+Reitrouten finden, teilen und bewerten, auf Englisch und Deutsch. Auf echten OpenStreetMap-Karten, mit einer zuschaltbaren Ebene für markierte Reitwege. Routen kommen als GPX, KML oder GeoJSON aus Komoot, Strava, Garmin, Equilab oder Outdooractive. Es braucht kein Benutzerkonto.
 
 ## Was drin ist
 
@@ -23,7 +26,11 @@ Die Seite funktioniert also sofort und wird gemeinsam, sobald die Datenbank ange
 
 ## Einrichten
 
-### 1. Website veröffentlichen (GitHub Pages, kostenlos)
+### 1. Website veröffentlichen
+
+**Vercel:** Add New → Project → `hoofprint` importieren → Framework Preset „Other“, kein Build Command → Deploy. Jeder Push geht automatisch online.
+
+**Oder GitHub Pages (kostenlos):**
 
 1. Lade die Dateien ins Repo `hoofprint` hoch.
 2. Öffne im Repo **Settings → Pages**.
@@ -71,4 +78,5 @@ Im Supabase-Dashboard unter **Table Editor**:
 - `index.html`: Seite und Gestaltung
 - `app.js`: die gesamte Logik (Karte, Liste, Details, Import, Zeichnen, Datenzugriff)
 - `config.js`: Supabase-Zugang
+- `i18n.js`: alle Texte auf Deutsch und Englisch (neue Sprache = neuer Block mit denselben Schlüsseln)
 - `supabase/schema.sql`: Tabellen, Zugriffsregeln, Spam-Bremse, Moderation, Foto-Speicher

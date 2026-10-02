@@ -1,4 +1,4 @@
--- Hufspur database setup for Supabase.
+-- Hoofprint database setup for Supabase.
 -- Run once in the Supabase dashboard: SQL Editor → New query → paste this file → Run.
 -- No user accounts: visitors post anonymously. Each post stores a random device_id
 -- that the public can't read; it allows deleting your own posts and, later, claiming them for an account.
