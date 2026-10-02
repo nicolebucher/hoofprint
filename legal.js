@@ -49,9 +49,9 @@ datenschutz: `
 <li>Kartenkacheln: OpenStreetMap Foundation, St John’s Innovation Centre, Cowley Road, Cambridge, CB4 0WS, Großbritannien (Angemessenheitsbeschluss der EU) sowie OpenTopoMap (Deutschland),</li>
 <li>Reitwege-Ebene: Waymarked Trails (Sarah Hoffmann, Deutschland),</li>
 <li>Ortssuche: Nominatim der OpenStreetMap Foundation,</li>
-<li>„Bierpause“ und „Wanderreitstationen“ (nur wenn du sie einschaltest): Overpass API, betrieben von FOSSGIS e.V. (Deutschland); falls dieser Dienst nicht antwortet, Ersatzserver von private.coffee (Österreich) und Kumi Systems (Deutschland).</li>
+<li>„Raststationen“ und „Wanderreitstationen“ (nur wenn du sie einschaltest): Overpass API, betrieben von FOSSGIS e.V. (Deutschland); falls dieser Dienst nicht antwortet, Ersatzserver von private.coffee (Österreich) und Kumi Systems (Deutschland).</li>
 </ul>
-<p>Die Ortssuche und die Abfragen für „Bierpause“ und „Wanderreitstationen“ laufen in der Regel über unseren Hoster Vercel (siehe Abschnitt 3), der sie an Nominatim bzw. die Overpass API weiterleitet; diese Dienste sehen dann nicht deine IP-Adresse, sondern die von Vercel. Nur wenn das nicht klappt, fragt dein Browser die Dienste direkt an.</p>
+<p>Die Ortssuche und die Abfragen für „Raststationen“ und „Wanderreitstationen“ laufen in der Regel über unseren Hoster Vercel (siehe Abschnitt 3), der sie an Nominatim bzw. die Overpass API weiterleitet; diese Dienste sehen dann nicht deine IP-Adresse, sondern die von Vercel. Nur wenn das nicht klappt, fragt dein Browser die Dienste direkt an.</p>
 <p>Rechtsgrundlage ist unser berechtigtes Interesse an einer funktionierenden Kartenanwendung (Art. 6 Abs. 1 lit. f DSGVO).</p>
 <h3>8. Programmbibliotheken</h3>
 <p>Die Kartenbibliothek Leaflet wird von unpkg.com und die Datenbank-Bibliothek von cdn.jsdelivr.net geladen. Diese Dienste (Cloudflare und jsDelivr/Fastly bzw. Cloudflare) erhalten dabei deine IP-Adresse. Die Schriftarten liegen auf unserem eigenen Server; es werden keine Daten an Google übertragen.</p>

@@ -150,7 +150,7 @@ const OVERPASS=[...(VIA_SITE?['api/osm?service=overpass&','osm/overpass?']:[]),'
 const POI_MINZOOM=12;
 const APP_VERSION=(document.querySelector('script[src*="app.js"]')?.src.match(/v=([^&]+)/)||[])[1]||'dev';
 const POI_DEFS={
- food:{icon:'🍺',query:bb=>`nwr["amenity"~"^(restaurant|fast_food|cafe|biergarten|pub|ice_cream)$"](${bb});nwr["shop"="kiosk"](${bb});nwr["tourism"~"^(hotel|guest_house|alpine_hut)$"]["name"~"gasthaus|gasthof|wirtshaus|restaurant|einkehr|krug|schänke|schenke|baude",i](${bb});`,
+ food:{icon:'🍽️',query:bb=>`nwr["amenity"~"^(restaurant|fast_food|cafe|biergarten|pub|ice_cream)$"](${bb});nwr["shop"="kiosk"](${bb});nwr["tourism"~"^(hotel|guest_house|alpine_hut)$"]["name"~"gasthaus|gasthof|wirtshaus|restaurant|einkehr|krug|schänke|schenke|baude",i](${bb});`,
   kind:t=>({restaurant:'restaurant',fast_food:'fast_food',cafe:'cafe',biergarten:'biergarten',pub:'pub',ice_cream:'ice_cream'})[t.amenity]||(t.shop==='kiosk'?'kiosk':'inn'),
   icons:{restaurant:'🍽️',fast_food:'🥨',cafe:'☕',biergarten:'🍺',pub:'🍺',ice_cream:'🍦',kiosk:'🥤',inn:'🍽️'}},
  stations:{icon:'🐴',query:bb=>`nwr["leisure"="horse_riding"](${bb});nwr["tourism"]["name"~"wanderreit|reiterhof|pferdehof|reitstation|reiterpension",i](${bb});nwr["tourism"]["horse"~"^(yes|designated)$"](${bb});`,
@@ -159,14 +159,14 @@ const POI_DEFS={
 const poi={};
 function initPoi(){const box=L.DomUtil.create('div','poictl');L.DomEvent.disableClickPropagation(box);L.DomEvent.disableScrollPropagation(box);
  Object.entries(POI_DEFS).forEach(([key,def])=>{const P=poi[key]={key,def,on:false,layer:L.layerGroup().addTo(map),seen:{},timer:null,busy:false,again:false};
-  const w=document.createElement('div');w.className='poiitem';w.innerHTML=`<button type="button" aria-pressed="false" title="${T(key+'Title')}">${def.icon} <span>${T(key)}</span><b class="cnt" hidden></b></button><div class="poihint" role="status" hidden></div>`;
-  P.btn=w.querySelector('button');P.cnt=w.querySelector('.cnt');P.hint=w.querySelector('.poihint');P.btn.onclick=()=>togglePoi(P);box.appendChild(w)});
+  const w=document.createElement('div');w.className='poiitem';w.innerHTML=`<label class="poibtn" title="${T(key+'Title')}"><input type="checkbox"> ${def.icon} <span>${T(key)}</span><b class="cnt" hidden></b></label><div class="poihint" role="status" hidden></div>`;
+  P.btn=w.querySelector('label');P.box=w.querySelector('input');P.cnt=w.querySelector('.cnt');P.hint=w.querySelector('.poihint');P.box.onchange=()=>togglePoi(P);box.appendChild(w)});
  new (L.Control.extend({onAdd:()=>box}))({position:'topleft'}).addTo(map);
  map.on('moveend',()=>Object.values(poi).forEach(P=>{if(P.on){clearTimeout(P.timer);P.timer=setTimeout(()=>loadPoi(P),400)}}));
- if(local.food!=null){local.poi={food:local.food};delete local.food;saveLocal()}
- Object.values(poi).forEach(P=>{if((local.poi||{})[P.key])togglePoi(P)})}
+ delete local.food;delete local.poi}
 function poiHint(P,txt,n){P.hint.textContent=txt||'';P.hint.hidden=!txt;P.cnt.textContent=n||'';P.cnt.hidden=!n}
-function togglePoi(P){P.on=!P.on;P.btn.setAttribute('aria-pressed',P.on);local.poi={...(local.poi||{}),[P.key]:P.on};saveLocal();
+/* nothing is searched until someone ticks the box; the choice is not remembered between visits */
+function togglePoi(P){P.on=P.box.checked;P.btn.classList.toggle('on',P.on);
  if(P.on)loadPoi(P);else{P.layer.clearLayers();P.seen={};poiHint(P,'');P.btn.title=T(P.key+'Title')}}
 /* Ask all servers at once and take the first good answer; public Overpass servers are often busy */
 async function overpass(q){const ctl=new AbortController(),t=setTimeout(()=>ctl.abort(),18000);
