@@ -138,13 +138,13 @@ function initMap(){
 /* Optional map layers from OpenStreetMap (Overpass API), each switched on by its own button:
    "Bierpause" (places to eat) and riding stations. OSM tagging varies, so each layer queries several tag combinations. */
 const OVERPASS=['https://overpass-api.de/api/interpreter','https://overpass.private.coffee/api/interpreter','https://overpass.kumi.systems/api/interpreter'];
-const POI_MINZOOM=11;
+const POI_MINZOOM=12;
 const APP_VERSION=(document.querySelector('script[src*="app.js"]')?.src.match(/v=([^&]+)/)||[])[1]||'dev';
 const POI_DEFS={
  food:{icon:'🍺',query:bb=>`nwr["amenity"~"^(restaurant|fast_food|cafe|biergarten|pub|ice_cream)$"](${bb});nwr["shop"="kiosk"](${bb});nwr["tourism"~"^(hotel|guest_house|alpine_hut)$"]["name"~"gasthaus|gasthof|wirtshaus|restaurant|einkehr|krug|schänke|schenke|baude",i](${bb});`,
   kind:t=>({restaurant:'restaurant',fast_food:'fast_food',cafe:'cafe',biergarten:'biergarten',pub:'pub',ice_cream:'ice_cream'})[t.amenity]||(t.shop==='kiosk'?'kiosk':'inn'),
   icons:{restaurant:'🍽️',fast_food:'🥨',cafe:'☕',biergarten:'🍺',pub:'🍺',ice_cream:'🍦',kiosk:'🥤',inn:'🍽️'}},
- stations:{icon:'🐴',query:bb=>`nwr["leisure"="horse_riding"](${bb});nwr["name"~"wanderreit|reiterhof|pferdehof|reitstation|reiterpension|pferdepension|reitstall",i](${bb});nwr["tourism"]["horse"~"^(yes|designated)$"](${bb});`,
+ stations:{icon:'🐴',query:bb=>`nwr["leisure"="horse_riding"](${bb});nwr["tourism"]["name"~"wanderreit|reiterhof|pferdehof|reitstation|reiterpension",i](${bb});nwr["tourism"]["horse"~"^(yes|designated)$"](${bb});`,
   kind:t=>/wanderreit/i.test(t.name||'')?'station':t.leisure==='horse_riding'?'stable':(t.tourism?'lodging':'stable'),
   icons:{station:'🐴',stable:'🐎',lodging:'🛏️'}}};
 const poi={};
@@ -159,12 +159,15 @@ function initPoi(){const box=L.DomUtil.create('div','poictl');L.DomEvent.disable
 function poiHint(P,txt,n){P.hint.textContent=txt||'';P.hint.hidden=!txt;P.cnt.textContent=n||'';P.cnt.hidden=!n}
 function togglePoi(P){P.on=!P.on;P.btn.setAttribute('aria-pressed',P.on);local.poi={...(local.poi||{}),[P.key]:P.on};saveLocal();
  if(P.on)loadPoi(P);else{P.layer.clearLayers();P.seen={};poiHint(P,'');P.btn.title=T(P.key+'Title')}}
-async function overpass(q){let last;for(const url of OVERPASS){try{const r=await fetch(url,{method:'POST',body:'data='+encodeURIComponent(q),headers:{'Content-Type':'application/x-www-form-urlencoded'},signal:AbortSignal.timeout?.(15000)});if(r.ok)return await r.json();last=new Error('HTTP '+r.status)}catch(e){last=e}}throw last}
+/* Ask all servers at once and take the first good answer; public Overpass servers are often busy */
+async function overpass(q){const ctl=new AbortController(),t=setTimeout(()=>ctl.abort(),25000);
+ try{return await Promise.any(OVERPASS.map(async url=>{const r=await fetch(url+'?data='+encodeURIComponent(q),{signal:ctl.signal});if(!r.ok)throw new Error(url+' HTTP '+r.status);const j=await r.json();if(!Array.isArray(j.elements))throw new Error(url+' bad');return j}))}
+ finally{clearTimeout(t);ctl.abort()}}
 async function loadPoi(P){if(!P.on)return;if(P.busy){P.again=true;return}
  if(map.getZoom()<POI_MINZOOM){poiHint(P,T('poiZoom'));return}
- const b=map.getBounds().pad(.3),bb=[b.getSouth(),b.getWest(),b.getNorth(),b.getEast()].map(x=>x.toFixed(4)).join(',');
+ const b=map.getBounds().pad(.1),bb=[b.getSouth(),b.getWest(),b.getNorth(),b.getEast()].map(x=>x.toFixed(4)).join(',');
  P.busy=true;P.btn.classList.add('busy');poiHint(P,T('poiLoading'));
- try{const j=await overpass(`[out:json][timeout:25];(${P.def.query(bb)});out center 400;`);if(!P.on)return;
+ try{const j=await overpass(`[out:json][timeout:20];(${P.def.query(bb)});out center 300;`);if(!P.on)return;
   j.elements.forEach(e=>{const id=e.type+e.id;if(P.seen[id])return;const la=e.lat??e.center?.lat,lo=e.lon??e.center?.lon;if(la==null)return;P.seen[id]=1;
    const t=e.tags||{},k=P.def.kind(t),label=T(P.key+'_'+k),web=t.website||t['contact:website'],tel=t.phone||t['contact:phone'];
    const m=L.marker([la,lo],{icon:L.divIcon({className:'',html:`<div class="poipin ${P.key}">${P.def.icons[k]||P.def.icon}</div>`,iconSize:[26,26],iconAnchor:[13,13]}),title:t.name||label,keyboard:false});
