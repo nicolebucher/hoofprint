@@ -446,11 +446,11 @@ function detailHTML(r){const s=stats(r),rv=reviewsOf(r),a=avg(r),fav=local.favor
  <section class="prof"><h4>${T('profile')}</h4>${profileSVG(s)}</section>
  <section><h4>${T('surface')}</h4><div class="surf">${surf.map(([k,v])=>`<span style="flex:${+v||1};background:${SURF_COL[k]||'#999'}" title="${esc(surfLabel(k))} ${Math.round(v/tot*100)} %"></span>`).join('')}</div>
   <div class="legend">${surf.map(([k,v])=>`<span><i style="background:${SURF_COL[k]||'#999'}"></i>${esc(surfLabel(k))} ${Math.round(v/tot*100)} %</span>`).join('')}</div></section>
- ${energyHTML(s)}
  ${(r.features||[]).length?`<section><h4>${T('forRiders')}</h4><div class="feat">${r.features.filter(f=>FEAT[f]).map(f=>`<span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${FEAT_ICON[f]}</svg>${featLabel(f)}</span>`).join('')}</div></section>`:''}
  ${r.desc?`<p class="desc">${esc(tr(r,'desc'))}</p>`:''}
  ${r.season?`<div class="note"><b>${T('season')}</b> ${esc(tr(r,'season'))}</div>`:''}
  <section><h4>${T('photos')} (${ph.length})</h4><div class="gallery">${ph.map(p=>`<button data-photo="${esc(p.src)}"><img src="${esc(p.src)}" alt="${T('photoOf',{name:esc(r.name)})}" loading="lazy">${p.example?`<span class="tag">${T('example').toUpperCase()}</span>`:''}</button>`).join('')}<label class="uploader" id="addPhoto" tabindex="0" role="button">${T('addPhoto')}</label></div></section>
+ ${energyHTML(s)}
  <section><h4>${T('reviews')}</h4><div class="reviews">
   <div class="rating-sum">${rv.length?`<b>${a.toLocaleString(LOC,{maximumFractionDigits:1})}</b><span class="stars" style="font-size:20px">${starStr(a)}</span><span style="color:var(--muted)">${rv.length} ${rv.length>1?T('reviewN'):T('review1')}</span>`:`<span style="color:var(--muted)">${T('noReviews')}</span>`}</div>
   <form class="revform" id="revform"><div class="starpick" id="starpick" role="radiogroup" aria-label="${T('stars')}">${[1,2,3,4,5].map(i=>`<button type="button" data-v="${i}" aria-label="${T('nStars',{n:i})}">★</button>`).join('')}</div>
