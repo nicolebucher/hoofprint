@@ -8,7 +8,10 @@ Reitrouten finden, teilen und bewerten, auf Englisch und Deutsch. Auf echten Ope
 ## Was drin ist
 
 - **Karte:** OpenStreetMap oder OpenTopoMap (mit Höhenlinien), dazu die Ebene „Markierte Reitwege“ von Waymarked Trails, außerdem eine Ortssuche.
-- **Entdecken:** Suche und Filter nach Schwierigkeit, Länge, Hängerparkplatz, Galoppstrecke, Wasserstelle, Einkehr und Strand.
+- **Startseite:** Regionssuche („In meiner Nähe“ per Standort), beliebte Schnellfilter, Top-Routen, kurze Anleitung.
+- **Menü:** Startseite, Routen entdecken, Gemerkt, Meine Routen, Route hinzufügen, Sprache, Über.
+- **Ritt aufzeichnen:** live per GPS im Browser. Die Seite muss dabei offen und das Display an bleiben; für Aufzeichnung mit gesperrtem Handy braucht es später eine App.
+- **Entdecken:** Karte und Liste mit Suche; alle Filter in einem eigenen Fenster: Schwierigkeit, Länge, Hängerparkplatz, Galoppstrecke, Wasserstelle, Einkehr und Strand.
 - **Routendetails:** Länge, Dauer, Höhenprofil, Wegbeschaffenheit, Fotos, Bewertungen und GPX-Download.
 - **Beitragen ohne Konto:** Routen importieren oder zeichnen, Fotos hochladen, bewerten.
 - **Schutz:** Jeder Beitrag trägt eine zufällige Geräte-Kennung, die öffentlich nicht lesbar ist. Damit lassen sich eigene Beiträge auf demselben Gerät löschen und später einem Konto zuordnen.

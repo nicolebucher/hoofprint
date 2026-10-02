@@ -14,7 +14,7 @@ let LANG=(()=>{try{const v=localStorage.getItem('hoofprint.lang');if(v&&I18N[v])
 const LOC=I18N[LANG].locale;
 function T(k,v){let s=I18N[LANG][k]??I18N.de[k]??k;if(v)for(const n in v)s=s.split('{'+n+'}').join(v[n]);return s}
 const tr=(r,f)=>(LANG==='en'&&r[f+'_en'])||r[f];
-const srcLabel=s=>s==='Beispiel'?T('example'):s==='Gezeichnet'?T('drawn'):s;
+const srcLabel=s=>s==='Beispiel'?T('example'):s==='Gezeichnet'?T('drawn'):s==='Aufgezeichnet'?T('recorded'):s;
 const diffLabel=d=>T('d_'+d);
 const featLabel=f=>T('feat_'+f);
 const surfLabel=k=>I18N[LANG]['s_'+k]||k;
@@ -130,7 +130,7 @@ function initMap(){
  map.on('click',e=>{if(ui.draft)addDraftPoint(e.latlng)});
  const mq=matchMedia('(prefers-color-scheme: dark)');mq.addEventListener?.('change',styleRoutes);
 }
-function fitAll(){if(!map)return;const b=L.latLngBounds([]);allRoutes().forEach(r=>r.coords.forEach(p=>b.extend([p[0],p[1]])));if(b.isValid())map.fitBounds(b,{padding:[30,30],maxZoom:13})}
+function fitAll(){if(!map)return;const b=L.latLngBounds([]);allRoutes().forEach(r=>r.coords.forEach(p=>b.extend([p[0],p[1]])));if(b.isValid())map.fitBounds(b,{padding:[30,30],maxZoom:13,animate:false})}
 function drawRoutes(){if(!map)return;Object.values(routeLayers).forEach(g=>map.removeLayer(g));Object.values(startMarkers).forEach(m=>map.removeLayer(m));routeLayers={};startMarkers={};
  visibleList(true).forEach(r=>{const ll=r.coords.map(p=>[p[0],p[1]]);const casing=L.polyline(ll,{weight:8,opacity:.9,interactive:false});const ln=L.polyline(ll,{weight:4.5,opacity:1});const g=L.layerGroup([casing,ln]).addTo(map);g._c=casing;g._l=ln;ln.on('click',()=>select(r.id));ln.bindTooltip(r.name,{sticky:true});routeLayers[r.id]=g;
   const m=L.marker(ll[0],{icon:L.divIcon({className:'',html:`<div class="pin">${HORSESHOE}</div>`,iconSize:[28,28],iconAnchor:[14,30]}),title:r.name,keyboard:true}).addTo(map);m.on('click',()=>select(r.id));startMarkers[r.id]=m});
@@ -148,53 +148,79 @@ function visibleList(ignoreTab){let rs=allRoutes();
  const cmp={rating:(a,b)=>avg(b)-avg(a),short:(a,b)=>stats(a).km-stats(b).km,long:(a,b)=>stats(b).km-stats(a).km,new:(a,b)=>String(b.createdAt).localeCompare(String(a.createdAt))}[ui.sort];
  return rs.sort(cmp)}
 
+const ICON={
+ search:'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg>',
+ filter:'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M4 6h16M7 12h10M10 18h4"/></svg>',
+ pin:'<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-6.2-7-11.5a7 7 0 0 1 14 0C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/></svg>',
+ near:'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/><circle cx="12" cy="12" r="7"/></svg>',
+ x:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>'
+};
+function activeFilterCount(){return ui.diff.size+ui.feats.size+(ui.maxKm<40?1:0)+(ui.inView?1:0)}
+function listTitle(){return ui.tab==='fav'?T('tabFav'):ui.tab==='mine'?T('tabMine'):ui.place&&ui.inView?T('routesNear',{place:esc(ui.place)}):T('navExplore')}
 function renderPanel(){const p=$('#panel');if(ui.sel&&byId(ui.sel)){p.innerHTML=detailHTML(byId(ui.sel));bindDetail();return}
- const favN=local.favorites.filter(byId).length,mineN=allRoutes().filter(isMine).length;
- const list=visibleList();
+ const list=visibleList(),n=activeFilterCount();
  const body=ui.loading?`<div class="loading">${T('loading')}</div>`:ui.loadError?`<div class="empty"><strong>${T('loadFail')}</strong>${esc(ui.loadError)}<button class="btn" data-act="retry">${T('retry')}</button></div>`:list.length?list.map(cardHTML).join(''):emptyHTML();
- p.innerHTML=`<div class="tabs" role="tablist">
-  <button class="tab" role="tab" data-tab="discover" aria-selected="${ui.tab==='discover'}">${T('tabDiscover')}</button>
-  <button class="tab" role="tab" data-tab="fav" aria-selected="${ui.tab==='fav'}">${T('tabFav')}<span class="count">${favN}</span></button>
-  <button class="tab" role="tab" data-tab="mine" aria-selected="${ui.tab==='mine'}">${T('tabMine')}<span class="count">${mineN}</span></button></div>
- <div class="filters">
-  <label class="search"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg><input id="q" type="search" placeholder="${T('searchPh')}" value="${esc(ui.q)}" aria-label="${T('searchLabel')}"></label>
-  ${ui.q.trim().length>2?`<button class="linkbtn" id="geo" style="justify-self:start">${T('searchMap',{q:esc(ui.q.trim())})}</button>`:''}
-  <div class="chips" aria-label="${T('difficulty')}">${['leicht','mittel','schwer'].map(d=>`<button class="chip" data-diff="${d}" aria-pressed="${ui.diff.has(d)}">${diffLabel(d)}</button>`).join('')}
-   ${['parking','gallop','water','inn','beach'].map(f=>`<button class="chip" data-feat="${f}" aria-pressed="${ui.feats.has(f)}">${featLabel(f)}</button>`).join('')}</div>
-  <div class="row"><label for="maxKm">${T('upTo')} <b id="maxKmV" style="color:var(--fg);font-variant-numeric:tabular-nums">${ui.maxKm<40?ui.maxKm+' km':T('any')}</b></label><input id="maxKm" type="range" min="5" max="40" step="1" value="${ui.maxKm}">
-   <label>${T('sort')} <select id="sort"><option value="rating">${T('sortRating')}</option><option value="short">${T('sortShort')}</option><option value="long">${T('sortLong')}</option><option value="new">${T('sortNew')}</option></select></label>
-   <label><input type="checkbox" id="inView" ${ui.inView?'checked':''}> ${T('inView')}</label></div>
+ const chips=[...[...ui.diff].map(d=>['diff',d,diffLabel(d)]),...[...ui.feats].map(f=>['feat',f,featLabel(f)]),...(ui.maxKm<40?[['km','',T('upTo')+' '+ui.maxKm+' km']]:[]),...(ui.inView?[['view','',T('inView')]]:[])];
+ p.innerHTML=`<div class="exhead">
+  <div class="exrow"><h2>${listTitle()}</h2><span class="muted">${ui.loading?'':T(list.length===1?'nRoute':'nRoutes',{n:list.length})}</span></div>
+  ${ui.place&&ui.tab==='discover'?`<button class="linkbtn" id="clearPlace">${T('showAllRegions')}</button>`:''}
+  <div class="exsearch"><label class="search">${ICON.search}<input id="q" type="search" placeholder="${T('searchPh')}" value="${esc(ui.q)}" aria-label="${T('searchLabel')}"></label>
+   <button class="btn" id="btnFilter" aria-label="${T('filters')}">${ICON.filter}<span>${T('filters')}</span>${n?`<b class="badge">${n}</b>`:''}</button></div>
+  ${ui.q.trim().length>2?`<button class="linkbtn" id="geo">${ICON.pin} ${T('searchMap',{q:esc(ui.q.trim())})}</button>`:''}
+  ${chips.length?`<div class="chips active">${chips.map(([k,v,l])=>`<button class="chip on" data-rm="${k}" data-v="${esc(v)}" title="${T('removeFilter')}">${esc(l)} ${ICON.x}</button>`).join('')}</div>`:''}
  </div>
  <div class="list">${body}</div>`;
- $('#sort').value=ui.sort;bindList()}
-function emptyHTML(){if(ui.tab==='fav')return`<div class="empty"><strong>${T('emptyFavT')}</strong>${T('emptyFav')}</div>`;
- if(ui.tab==='mine')return`<div class="empty"><strong>${T('emptyMineT')}</strong>${T('emptyMine')}<button class="btn primary" data-act="import">${T('import')}</button></div>`;
- return`<div class="empty"><strong>${T('emptyT')}</strong>${T('empty')}</div>`}
+ bindList()}
+function emptyHTML(){if(ui.tab==='fav')return`<div class="empty"><strong>${T('emptyFavT')}</strong>${T('emptyFav')}<a class="btn" href="#/explore">${T('navExplore')}</a></div>`;
+ if(ui.tab==='mine')return`<div class="empty"><strong>${T('emptyMineT')}</strong>${T('emptyMine')}<button class="btn primary" data-act="add">${T('addRoute')}</button></div>`;
+ return`<div class="empty"><strong>${T('emptyT')}</strong>${T('empty')}${activeFilterCount()||ui.q?`<button class="btn" data-act="reset">${T('resetFilters')}</button>`:''}</div>`}
 function cardHTML(r){const s=stats(r),a=avg(r),n=reviewsOf(r).length,ph=photosOf(r)[0];
- return`<button class="card" data-id="${esc(r.id)}">${ph?`<img class="thumb" src="${esc(ph.src)}" alt="" loading="lazy">`:`<div class="thumb"></div>`}
+ return`<a class="card" href="#/route/${encodeURIComponent(r.id)}" data-id="${esc(r.id)}">${ph?`<img class="thumb" src="${esc(ph.src)}" alt="" loading="lazy">`:`<div class="thumb"></div>`}
  <div style="min-width:0"><div class="src">${esc(srcLabel(r.source))}${isMine(r)?' · '+T('byYou'):''}${local.favorites.includes(r.id)?' · ♥':''}</div><h3>${esc(r.name)}</h3><div class="meta">${esc(r.region||T('noRegion'))}</div>
- <div class="stats"><span class="pill d-${esc(r.difficulty)}">${esc(diffLabel(r.difficulty))}</span><span>${fmtKm(s.km)} km</span><span>${fmtDur(s.hours)}</span>${s.hasE?`<span>↑ ${fmtInt(s.up)} m</span>`:''}<span>${n?`<span class="stars">${starStr(a)}</span> ${a.toLocaleString(LOC,{maximumFractionDigits:1})} (${n})`:T('unrated')}</span></div></div></button>`}
+ <div class="stats"><span class="pill d-${esc(r.difficulty)}">${esc(diffLabel(r.difficulty))}</span><span>${fmtKm(s.km)} km</span><span>${fmtDur(s.hours)}</span>${s.hasE?`<span>↑ ${fmtInt(s.up)} m</span>`:''}<span>${n?`<span class="stars">${starStr(a)}</span> ${a.toLocaleString(LOC,{maximumFractionDigits:1})} (${n})`:T('unrated')}</span></div></div></a>`}
 function bindList(){const p=$('#panel');
- p.querySelectorAll('.tab').forEach(b=>b.onclick=()=>{ui.tab=b.dataset.tab;renderPanel()});
  const q=$('#q');q.oninput=()=>{ui.q=q.value;const pos=q.selectionStart;renderPanel();drawRoutes();const n=$('#q');n.focus();n.setSelectionRange(pos,pos)};
- const geo=$('#geo');if(geo)geo.onclick=()=>geocode(ui.q.trim());
- p.querySelectorAll('[data-diff]').forEach(b=>b.onclick=()=>{const d=b.dataset.diff;ui.diff.has(d)?ui.diff.delete(d):ui.diff.add(d);renderPanel();drawRoutes()});
- p.querySelectorAll('[data-feat]').forEach(b=>b.onclick=()=>{const d=b.dataset.feat;ui.feats.has(d)?ui.feats.delete(d):ui.feats.add(d);renderPanel();drawRoutes()});
- $('#maxKm').oninput=e=>{ui.maxKm=+e.target.value;$('#maxKmV').textContent=ui.maxKm<40?ui.maxKm+' km':T('any')};
- $('#maxKm').onchange=()=>{renderPanel();drawRoutes()};
- $('#sort').onchange=e=>{ui.sort=e.target.value;renderPanel()};
- $('#inView').onchange=e=>{ui.inView=e.target.checked;renderPanel()};
- p.querySelectorAll('.card').forEach(c=>{c.onclick=()=>select(c.dataset.id);c.onmouseenter=()=>hoverRoute(c.dataset.id,true);c.onmouseleave=()=>hoverRoute(c.dataset.id,false)});
- p.querySelector('[data-act=import]')?.addEventListener('click',openImport);
+ const geo=$('#geo');if(geo)geo.onclick=()=>{const v=ui.q.trim();ui.q='';findPlace(v)};
+ $('#btnFilter').onclick=openFilters;
+ $('#clearPlace')?.addEventListener('click',()=>{ui.place=null;ui.inView=false;renderPanel();drawRoutes();fitAll()});
+ p.querySelectorAll('[data-rm]').forEach(b=>b.onclick=()=>{const k=b.dataset.rm,v=b.dataset.v;if(k==='diff')ui.diff.delete(v);if(k==='feat')ui.feats.delete(v);if(k==='km')ui.maxKm=40;if(k==='view'){ui.inView=false;ui.place=null}renderPanel();drawRoutes()});
+ p.querySelectorAll('.card').forEach(c=>{c.onmouseenter=()=>hoverRoute(c.dataset.id,true);c.onmouseleave=()=>hoverRoute(c.dataset.id,false)});
+ p.querySelector('[data-act=add]')?.addEventListener('click',openAdd);
+ p.querySelector('[data-act=reset]')?.addEventListener('click',()=>{resetFilters();ui.q='';renderPanel();drawRoutes()});
  p.querySelector('[data-act=retry]')?.addEventListener('click',boot)}
+function resetFilters(){ui.diff.clear();ui.feats.clear();ui.maxKm=40;ui.inView=false;ui.place=null}
 function hoverRoute(id,on){const g=routeLayers[id];if(!g)return;g._l.setStyle({weight:on?7:4.5});if(on){g._c.bringToFront();g._l.bringToFront()}}
-/* Place search via OpenStreetMap Nominatim, only on an explicit click */
-async function geocode(q){if(!map)return;try{const r=await fetch('https://nominatim.openstreetmap.org/search?format=json&limit=1&accept-language='+LANG+'&q='+encodeURIComponent(q));const j=await r.json();
- if(!j.length){toast(T('placeNotFound'));return}const b=j[0].boundingbox.map(Number);map.fitBounds([[b[0],b[2]],[b[1],b[3]]],{maxZoom:13});ui.q='';ui.inView=true;renderPanel();drawRoutes()}catch(e){toast(T('placeDown'))}}
+
+/* Filter sheet: all filters in one place, applied live */
+function openFilters(){const m=modal(`<h3>${T('filters')}</h3>
+ <div class="field">${T('difficulty')}<div class="chips">${['leicht','mittel','schwer'].map(d=>`<button class="chip" data-diff="${d}" aria-pressed="${ui.diff.has(d)}">${diffLabel(d)}</button>`).join('')}</div></div>
+ <div class="field">${T('forRiders')}<div class="chips">${['parking','gallop','water','inn','beach','shade'].map(f=>`<button class="chip" data-feat="${f}" aria-pressed="${ui.feats.has(f)}">${featLabel(f)}</button>`).join('')}</div></div>
+ <div class="field"><span>${T('maxLength')}: <b id="fKmV" style="color:var(--fg)">${ui.maxKm<40?ui.maxKm+' km':T('any')}</b></span><input id="fKm" type="range" min="5" max="40" step="1" value="${ui.maxKm}" style="accent-color:var(--accent)"></div>
+ <label class="field">${T('sort')}<select class="txt" id="fSort"><option value="rating">${T('sortRating')}</option><option value="short">${T('sortShort')}</option><option value="long">${T('sortLong')}</option><option value="new">${T('sortNew')}</option></select></label>
+ <label class="checks"><label><input type="checkbox" id="fView" ${ui.inView?'checked':''}> ${T('inView')}</label></label>
+ <div class="actions spread"><button class="btn ghost" id="fReset">${T('resetFilters')}</button><button class="btn primary" id="fShow"></button></div>`);
+ const upd=()=>{const n=visibleList().length;$('#fShow',m).textContent=T(n===1?'showNRoute':'showNRoutes',{n});renderPanel();drawRoutes()};
+ $('#fSort',m).value=ui.sort;
+ m.querySelectorAll('[data-diff]').forEach(b=>b.onclick=()=>{const d=b.dataset.diff;ui.diff.has(d)?ui.diff.delete(d):ui.diff.add(d);b.setAttribute('aria-pressed',ui.diff.has(d));upd()});
+ m.querySelectorAll('[data-feat]').forEach(b=>b.onclick=()=>{const f=b.dataset.feat;ui.feats.has(f)?ui.feats.delete(f):ui.feats.add(f);b.setAttribute('aria-pressed',ui.feats.has(f));upd()});
+ $('#fKm',m).oninput=e=>{ui.maxKm=+e.target.value;$('#fKmV',m).textContent=ui.maxKm<40?ui.maxKm+' km':T('any');upd()};
+ $('#fSort',m).onchange=e=>{ui.sort=e.target.value;upd()};
+ $('#fView',m).onchange=e=>{ui.inView=e.target.checked;if(!ui.inView)ui.place=null;upd()};
+ $('#fReset',m).onclick=()=>{resetFilters();m.close();renderPanel();drawRoutes();openFilters()};
+ $('#fShow',m).onclick=()=>m.close();upd()}
+
+/* Place search via OpenStreetMap Nominatim; matching route regions are used first */
+async function findPlace(q){q=q.trim();if(!q)return;map?.invalidateSize();
+ const hits=allRoutes().filter(r=>((r.region||'')+' '+r.name).toLowerCase().includes(q.toLowerCase()));
+ if(hits.length){ui.place=q;ui.inView=true;if(map){const b=L.latLngBounds([]);hits.forEach(r=>r.coords.forEach(p=>b.extend([p[0],p[1]])));map.fitBounds(b,{padding:[40,40],maxZoom:12,animate:false})}renderPanel();drawRoutes();return}
+ if(!map)return;try{const r=await fetch('https://nominatim.openstreetmap.org/search?format=json&limit=1&accept-language='+LANG+'&q='+encodeURIComponent(q));const j=await r.json();
+  if(!j.length){toast(T('placeNotFound'));return}const b=j[0].boundingbox.map(Number);map.fitBounds([[b[0],b[2]],[b[1],b[3]]],{maxZoom:11,animate:false});
+  ui.place=j[0].display_name.split(',')[0];ui.inView=true;renderPanel();drawRoutes()}catch(e){toast(T('placeDown'))}}
 
 /* ---------- detail ---------- */
-function select(id){if(ui.draft)return;ui.sel=id;ui.confirmDel=null;renderPanel();$('#panel').scrollTop=0;styleRoutes();const r=byId(id);if(map&&r){map.fitBounds(L.latLngBounds(r.coords.map(p=>[p[0],p[1]])),{padding:[40,40],maxZoom:15})}}
-function back(){ui.sel=null;renderPanel();styleRoutes()}
+function select(id){if(ui.draft)return;location.hash='#/route/'+encodeURIComponent(id)}
+function showRoute(id){ui.sel=id;ui.confirmDel=null;renderPanel();$('#panel').scrollTop=0;styleRoutes();const r=byId(id);if(map&&r){map.fitBounds(L.latLngBounds(r.coords.map(p=>[p[0],p[1]])),{padding:[40,40],maxZoom:15})}}
+function back(){location.hash=ui.lastList||'#/explore'}
 
 function profileSVG(s){if(!s.hasE)return`<p class="note">${T('noEle')}</p>`;
  const W=600,H=150,pl=40,pr=8,pt=10,pb=22;const pts=s.prof.filter(p=>p[1]!=null);const lo=Math.floor((s.minE-10)/10)*10,hi=Math.ceil((s.maxE+10)/10)*10;
@@ -257,7 +283,7 @@ function bindDetail(){const r=byId(ui.sel);let stars=0;
  document.querySelectorAll('[data-delrev]').forEach(b=>b.onclick=async()=>{try{await backend.remove('review',b.dataset.delrev);local.myReviews=local.myReviews.filter(x=>x!==b.dataset.delrev);saveLocal();toast(T('reviewDeleted'));renderPanel()}catch(x){toast(x.message)}});
  document.querySelectorAll('[data-report]').forEach(b=>b.onclick=()=>openReport(b.dataset.report,b.dataset.target));
  const del=$('#del');if(del)del.onclick=async()=>{if(ui.confirmDel!==r.id){ui.confirmDel=r.id;renderPanel();return}ui.confirmDel=null;
-  try{await backend.remove('route',r.id);local.mine=local.mine.filter(x=>x!==r.id);local.favorites=local.favorites.filter(x=>x!==r.id);saveLocal();ui.sel=null;drawRoutes();renderPanel();toast(T('routeDeleted'))}catch(x){toast(x.message);renderPanel()}}}
+  try{await backend.remove('route',r.id);local.mine=local.mine.filter(x=>x!==r.id);local.favorites=local.favorites.filter(x=>x!==r.id);saveLocal();drawRoutes();location.hash='#/mine';toast(T('routeDeleted'))}catch(x){toast(x.message);renderPanel()}}}
 $('#filePhoto').onchange=async e=>{const r=byId(ui.sel);if(!r)return;const files=[...e.target.files].slice(0,6);e.target.value='';let ok=0;toast(T('uploading'));
  for(const f of files){try{throttle();const blob=await shrink(f,1400,.8);const p=await backend.addPhoto(r.id,blob);local.myPhotos.push(p.id);ok++}catch(err){toast(err.message||T('imgUnreadable'));break}}
  saveLocal();if(ok){toast(ok>1?T('photosAdded',{n:ok}):T('photoAdded'));renderPanel()}};
@@ -308,11 +334,11 @@ function openSave(d){const s=stats({coords:d.coords});const surfOpts=['Waldweg',
  <div class="err" id="sErr"></div><div class="actions"><button class="btn" data-close>${T('discard')}</button><button class="btn primary" id="sSave">${backend.online?T('publish'):T('store')}</button></div>`);
  $('#sSave',m).onclick=async e=>{if($('#sWeb',m).value){m.close();return}const sf=[...m.querySelectorAll('[name=surf]:checked')].map(x=>x.value);const surfaces={};sf.forEach(k=>surfaces[k]=Math.round(100/sf.length));
   const r={id:uuid(),name:$('#sName',m).value.trim().slice(0,80)||T('untitled'),region:$('#sRegion',m).value.trim().slice(0,80),difficulty:$('#sDiff',m).value,surfaces:sf.length?surfaces:{Unbekannt:100},features:[...m.querySelectorAll('[name=feat]:checked')].map(x=>x.value),desc:$('#sDesc',m).value.trim().slice(0,800),coords:d.coords,source:d.source,createdAt:new Date().toISOString()};
-  e.target.disabled=true;try{throttle();await backend.addRoute(r);local.mine.push(r.id);saveLocal();m.close();ui.tab='mine';drawRoutes();select(r.id);toast(backend.online?T('published'):T('stored'))}catch(x){$('#sErr',m).textContent=x.message;e.target.disabled=false}}}
+  e.target.disabled=true;try{throttle();await backend.addRoute(r);local.mine.push(r.id);saveLocal();m.close();drawRoutes();select(r.id);toast(backend.online?T('published'):T('stored'))}catch(x){$('#sErr',m).textContent=x.message;e.target.disabled=false}}}
 
 /* ---------- draw mode ---------- */
 let draftLayer=null,draftMarkers=[];
-function startDraw(){if(!map){toast(T('noMap'));return}if(ui.draft)return;ui.draft=[];ui.sel=null;renderPanel();styleRoutes();map.getContainer().classList.add('leaflet-crosshair');
+function startDraw(){if(rec)return;if(!map){toast(T('noMap'));return}map.invalidateSize();if(ui.draft)return;ui.draft=[];ui.sel=null;renderPanel();styleRoutes();map.getContainer().classList.add('leaflet-crosshair');
  const bar=document.createElement('div');bar.className='drawbar';bar.id='drawbar';$('.mapwrap').appendChild(bar);updateDraw();toast(T('drawHint'))}
 function addDraftPoint(ll){ui.draft.push([+ll.lat.toFixed(6),+ll.lng.toFixed(6),null]);updateDraw()}
 function updateDraw(){const d=ui.draft;if(draftLayer)map.removeLayer(draftLayer);draftMarkers.forEach(m=>map.removeLayer(m));draftMarkers=[];
@@ -331,17 +357,128 @@ function openAbout(){modal(`<h3>${T('about')}</h3><p>${backend.online?T('aboutSh
  <p style="font-size:12px">${T('deviceId')}: <code>${esc(local.deviceId.slice(0,8))}…</code></p>
  <div class="actions"><button class="btn primary" data-close>${T('ok')}</button></div>`)}
 
+
+/* ---------- record a ride with the phone's GPS (page must stay open, screen on) ---------- */
+let rec=null;
+function openRecord(){if(!navigator.geolocation){toast(T('noGeo'));return}
+ if(view!=='explore'){location.hash='#/explore';setTimeout(openRecord,200);return}
+ if(rec||ui.draft||!map)return;
+ rec={pts:[],start:null,elapsed:0,running:false,watch:null,lock:null,line:L.polyline([],{color:cssVar('--route-sel'),weight:5,interactive:false}).addTo(map),me:null};
+ const bar=document.createElement('div');bar.className='recbar';bar.id='recbar';$('.mapwrap').appendChild(bar);L.DomEvent.disableClickPropagation(bar);renderRec()}
+function recKm(){return rec.pts.length>1?stats({coords:rec.pts}).km:0}
+function recTime(){const ms=rec.elapsed+(rec.running?Date.now()-rec.start:0),m=Math.floor(ms/60000);return`${Math.floor(m/60)}:${String(m%60).padStart(2,'0')}`}
+function renderRec(){const b=$('#recbar');if(!b||!rec)return;
+ b.innerHTML=`<div class="recstats"><div><b>${recTime()}</b><span>${T('recTime')}</span></div><div><b>${fmtKm(recKm())}</b><span>km</span></div><div><b>${rec.pts.length}</b><span>${T('points')}</span></div></div>
+ ${rec.running?`<div class="rechint"><span class="recdot"></span>${T('recRunning')}</div>`:`<div class="rechint">${rec.pts.length?T('recPaused'):T('recIntro')}</div>`}
+ <div class="recbtns">${rec.running?`<button class="btn" id="rPause">${T('recPause')}</button>`:`<button class="btn primary" id="rGo">${rec.pts.length?T('recResume'):T('recStart')}</button>`}
+ ${rec.pts.length>1&&!rec.running?`<button class="btn primary" id="rDone">${T('recFinish')}</button>`:''}<button class="btn ghost" id="rCancel">${T('cancel')}</button></div>`;
+ $('#rGo')?.addEventListener('click',recGo);$('#rPause')?.addEventListener('click',recPause);
+ $('#rDone')?.addEventListener('click',()=>{const coords=rec.pts.slice();recStop();openSave({name:T('recName',{date:new Date().toLocaleDateString(LOC)}),coords,source:'Aufgezeichnet'})});
+ $('#rCancel').onclick=()=>{if(rec.pts.length>1&&!b.dataset.sure){b.dataset.sure=1;$('#rCancel').textContent=T('recDiscard');return}recStop()}}
+async function recGo(){rec.running=true;rec.start=Date.now();
+ try{rec.lock=await navigator.wakeLock?.request('screen')}catch(e){}
+ rec.watch=navigator.geolocation.watchPosition(p=>{const c=p.coords;if(c.accuracy>35)return;
+   const pt=[+c.latitude.toFixed(6),+c.longitude.toFixed(6),c.altitude!=null?Math.round(c.altitude):null];const last=rec.pts[rec.pts.length-1];
+   if(!last||haversine(last,pt)>.006){rec.pts.push(pt);rec.line.addLatLng([pt[0],pt[1]]);local.recording=rec.pts;saveLocal()}
+   if(!rec.me)rec.me=L.marker([pt[0],pt[1]],{icon:L.divIcon({className:'',html:'<div class="me"></div>',iconSize:[18,18],iconAnchor:[9,9]}),interactive:false}).addTo(map);else rec.me.setLatLng([pt[0],pt[1]]);
+   map.setView([pt[0],pt[1]],Math.max(map.getZoom(),15));renderRec()},
+  e=>{toast(e.code===1?T('geoDenied'):T('noGeo'));recPause()},{enableHighAccuracy:true,maximumAge:2000,timeout:20000});
+ rec.tick=setInterval(renderRec,10000);renderRec()}
+function recPause(){if(!rec)return;if(rec.running){rec.elapsed+=Date.now()-rec.start}rec.running=false;if(rec.watch!=null)navigator.geolocation.clearWatch(rec.watch);rec.watch=null;clearInterval(rec.tick);rec.lock?.release?.().catch(()=>{});rec.lock=null;renderRec()}
+function recStop(){if(!rec)return;recPause();map.removeLayer(rec.line);if(rec.me)map.removeLayer(rec.me);$('#recbar')?.remove();rec=null;delete local.recording;saveLocal()}
+document.addEventListener('visibilitychange',async()=>{if(rec?.running&&document.visibilityState==='visible'){try{rec.lock=await navigator.wakeLock?.request('screen')}catch(e){}}});
+/* A recording interrupted by a closed tab can still be saved next time */
+function offerRecovery(){const pts=local.recording;if(!pts||pts.length<2)return;
+ const m=modal(`<h3>${T('recRecoverT')}</h3><p>${T('recRecover',{n:pts.length,km:fmtKm(stats({coords:pts}).km)})}</p><div class="actions"><button class="btn" id="rvNo">${T('recDiscard')}</button><button class="btn primary" id="rvYes">${T('store')}</button></div>`);
+ $('#rvNo',m).onclick=()=>{delete local.recording;saveLocal();m.close()};
+ $('#rvYes',m).onclick=()=>{delete local.recording;saveLocal();m.close();openSave({name:T('recName',{date:new Date().toLocaleDateString(LOC)}),coords:pts,source:'Aufgezeichnet'})}}
+
+/* ---------- home ---------- */
+function topRoutes(){return allRoutes().slice().sort((a,b)=>(avg(b)*Math.min(reviewsOf(b).length,3))-(avg(a)*Math.min(reviewsOf(a).length,3))||String(b.createdAt).localeCompare(String(a.createdAt))).slice(0,6)}
+function tileHTML(r){const s=stats(r),a=avg(r),n=reviewsOf(r).length,ph=photosOf(r)[0];
+ return`<a class="tile" href="#/route/${encodeURIComponent(r.id)}">${ph?`<img src="${esc(ph.src)}" alt="" loading="lazy">`:'<div class="ph"></div>'}
+ <div class="tbody"><div class="tmeta"><span class="pill d-${esc(r.difficulty)}">${esc(diffLabel(r.difficulty))}</span>${n?`<span class="stars">★ ${a.toLocaleString(LOC,{maximumFractionDigits:1})}</span><span class="muted">(${n})</span>`:''}</div>
+ <h4>${esc(r.name)}</h4><div class="muted">${esc(r.region||T('noRegion'))}</div><div class="tstats">${fmtKm(s.km)} km · ${fmtDur(s.hours)}${s.hasE?` · ↑ ${fmtInt(s.up)} m`:''}</div></div></a>`}
+function renderHome(){const regions=[...new Set(allRoutes().map(r=>(r.region||'').split('·')[0].trim()).filter(Boolean))].sort();
+ const quick=[['leicht',T('qEasy')],['gallop',T('qGallop')],['beach',T('qBeach')],['inn',T('qInn')]];
+ $('#home').innerHTML=`<section class="hero"><div class="heroin">
+  <h2>${T('heroTitle')}</h2><p>${T('heroText')}</p>
+  <form id="regionForm" class="regionbox" role="search"><span class="ic">${ICON.pin}</span><input id="regionInput" list="regionList" autocomplete="off" placeholder="${T('regionInputPh')}" aria-label="${T('regionInputLabel')}"><button class="btn primary big" type="submit">${T('findRoutes')}</button></form>
+  <datalist id="regionList">${regions.map(r=>`<option value="${esc(r)}">`).join('')}</datalist>
+  <div class="herobtns"><button class="linkbtn strong" id="nearMe">${ICON.near} ${T('nearMe')}</button><a class="linkbtn strong" href="#/explore">${T('browseMap')} →</a></div>
+  <div class="quick"><span class="muted">${T('popular')}</span>${quick.map(([k,l])=>`<a class="chip" href="#/explore?f=${k}">${l}</a>`).join('')}</div>
+ </div></section>
+ <section class="hsec"><div class="sechead"><h3>${T('topRoutes')}</h3><a href="#/explore">${T('allRoutes')} →</a></div>
+  <div class="topgrid">${ui.loading?`<p class="muted">${T('loading')}</p>`:topRoutes().map(tileHTML).join('')}</div></section>
+ <section class="hsec how"><h3>${T('howTitle')}</h3><ol>
+  <li><b>${T('how1t')}</b><span>${T('how1')}</span></li><li><b>${T('how2t')}</b><span>${T('how2')}</span></li><li><b>${T('how3t')}</b><span>${T('how3')}</span></li></ol>
+  <button class="btn primary" data-act="add">${T('addRoute')}</button></section>
+ <footer class="foot"><span>Hoofprint</span><button class="linkbtn" data-act="lang">${T('langName')}</button><button class="linkbtn" data-act="about">${T('about')}</button></footer>`;
+ $('#regionForm').onsubmit=e=>{e.preventDefault();const v=$('#regionInput').value.trim();location.hash=v?'#/explore?region='+encodeURIComponent(v):'#/explore'};
+ $('#nearMe').onclick=nearMe;
+ $('#home').querySelector('[data-act=add]').onclick=openAdd;
+ $('#home').querySelector('[data-act=lang]').onclick=switchLang;
+ $('#home').querySelector('[data-act=about]').onclick=openAbout}
+function nearMe(){if(!navigator.geolocation){toast(T('noGeo'));return}toast(T('locating'));
+ navigator.geolocation.getCurrentPosition(p=>{location.hash='#/explore?near='+p.coords.latitude.toFixed(4)+','+p.coords.longitude.toFixed(4)},()=>toast(T('noGeo')),{timeout:10000,maximumAge:300000})}
+
+/* ---------- add route chooser ---------- */
+function openAdd(){const m=modal(`<h3>${T('addRoute')}</h3><p>${T('addText')}</p>
+ <div class="choices"><button class="choice" id="cImport"><b>${T('import')}</b><span>${T('importShort')}</span></button>
+ <button class="choice" id="cDraw"><b>${T('draw')}</b><span>${T('drawShort')}</span></button>
+ <button class="choice" id="cRec"><b>${T('record')}</b><span>${T('recordShort')}</span></button></div>
+ <div class="actions"><button class="btn" data-close>${T('cancel')}</button></div>`);
+ $('#cImport',m).onclick=()=>{m.close();openImport()};
+ $('#cRec',m).onclick=()=>{m.close();openRecord()};
+ $('#cDraw',m).onclick=()=>{m.close();if(view!=='explore'){location.hash='#/explore';setTimeout(startDraw,150)}else startDraw()}}
+
+/* ---------- menu ---------- */
+function openMenu(){const favN=local.favorites.filter(byId).length,mineN=allRoutes().filter(isMine).length;
+ const d=document.createElement('div');d.className='drawer-bg';d.innerHTML=`<nav class="drawer" aria-label="${T('menu')}">
+  <div class="dhd"><b>${T('menu')}</b><button class="btn ghost" data-close aria-label="${T('close')}">${ICON.x}</button></div>
+  <a href="#/">${T('navHome')}</a><a href="#/explore">${T('navExplore')}</a>
+  <a href="#/saved">${T('tabFav')}<span class="count">${favN}</span></a><a href="#/mine">${T('tabMine')}<span class="count">${mineN}</span></a>
+  <hr><button data-act="import">${T('import')}</button><button data-act="draw">${T('draw')}</button><button data-act="rec">${T('record')}</button>
+  <hr><button data-act="lang">${T('langName')}</button><button data-act="about">${T('about')}</button>
+  <div class="dfoot"><span class="mode">${backend.online?T('modeShared'):T('modeLocal')}</span> <span class="muted">${backend.online?T('modeSharedTitle'):T('modeLocalTitle')}</span></div></nav>`;
+ document.body.appendChild(d);const close=()=>{d.remove();document.removeEventListener('keydown',k)};function k(e){if(e.key==='Escape')close()}document.addEventListener('keydown',k);
+ d.addEventListener('click',e=>{if(e.target===d||e.target.closest('[data-close],a'))close()});
+ d.querySelector('[data-act=import]').onclick=()=>{close();openImport()};
+ d.querySelector('[data-act=draw]').onclick=()=>{close();if(view!=='explore'){location.hash='#/explore';setTimeout(startDraw,150)}else startDraw()};
+ d.querySelector('[data-act=rec]').onclick=()=>{close();openRecord()};
+ d.querySelector('[data-act=lang]').onclick=switchLang;d.querySelector('[data-act=about]').onclick=()=>{close();openAbout()};
+ setTimeout(()=>d.querySelector('a')?.focus(),0)}
+function switchLang(){try{localStorage.setItem('hoofprint.lang',LANG==='de'?'en':'de')}catch(e){}location.reload()}
+
+/* ---------- pages: #/  #/explore  #/saved  #/mine  #/route/<id> ---------- */
+let view=null,mapReady=false;
+function showView(v){view=v;$('#home').hidden=v!=='home';$('#explore').hidden=v!=='explore';
+ document.querySelectorAll('.topnav a').forEach(a=>a.classList.toggle('on',a.dataset.view===v||(a.dataset.view==='saved'&&ui.tab==='fav'&&v==='explore')));
+ if(v==='explore'){if(!mapReady){mapReady=true;try{initMap()}catch(e){console.error(e);$('#map').innerHTML=`<div class="maperr">${T('mapFail')}</div>`}drawRoutes();fitAll()}else if(map)map.invalidateSize()}}
+function router(){if(ui.draft)endDraw();if(rec&&!location.hash.startsWith('#/explore'))recPause();
+ const h=location.hash.replace(/^#\/?/,''),[path,qs]=h.split('?'),parts=path.split('/'),params=new URLSearchParams(qs||'');
+ if(!parts[0]){showView('home');renderHome();window.scrollTo(0,0);return}
+ if(parts[0]==='route'){showView('explore');showRoute(decodeURIComponent(parts[1]||''));return}
+ ui.sel=null;ui.tab={saved:'fav',mine:'mine'}[parts[0]]||'discover';
+ const fresh=location.hash!==ui.lastList;ui.lastList=location.hash;
+ if(fresh&&(ui.tab!=='discover'||params.has('f')||params.has('region')||params.has('near'))){resetFilters();ui.q=''}
+ const f=params.get('f');if(fresh&&f){if(['leicht','mittel','schwer'].includes(f))ui.diff.add(f);else if(FEAT[f])ui.feats.add(f)}
+ showView('explore');renderPanel();drawRoutes();styleRoutes();
+ if(fresh){const region=params.get('region'),near=params.get('near');
+  if(region)findPlace(region);
+  else if(near&&map){map.invalidateSize();const [la,lo]=near.split(',').map(Number);map.setView([la,lo],10,{animate:false});ui.place=T('yourLocation');ui.inView=true;renderPanel();drawRoutes()}
+  else if(f)fitVisible()}}
+function fitVisible(){if(!map)return;const b=L.latLngBounds([]);visibleList(true).forEach(r=>r.coords.forEach(p=>b.extend([p[0],p[1]])));if(b.isValid())map.fitBounds(b,{padding:[30,30],maxZoom:13,animate:false})}
+
 /* ---------- start ---------- */
-async function boot(){ui.loading=true;ui.loadError=null;renderPanel();
+async function boot(){ui.loading=true;ui.loadError=null;if(view==='home')renderHome();else renderPanel();
  try{await backend.load()}catch(e){ui.loadError=backend.online?T('dbDown'):String(e.message||e)}
- ui.loading=false;renderPanel();drawRoutes();fitAll()}
-$('#btnImport').onclick=openImport;$('#btnDraw').onclick=startDraw;$('#btnAbout').onclick=openAbout;
+ ui.loading=false;if(view==='home')renderHome();else{renderPanel();drawRoutes();if(!ui.sel&&!ui.place)fitAll();else if(ui.sel)showRoute(ui.sel)}}
 /* static page text */
 document.documentElement.lang=LANG;document.title=T('pageTitle');
 document.querySelectorAll('[data-i18n]').forEach(el=>el.textContent=T(el.dataset.i18n));
 document.querySelectorAll('[data-i18n-title]').forEach(el=>{el.title=T(el.dataset.i18nTitle);if(el.hasAttribute('aria-label'))el.setAttribute('aria-label',el.title)});
-const mode=$('#mode');mode.textContent=backend.online?T('modeShared'):T('modeLocal');mode.title=backend.online?T('modeSharedTitle'):T('modeLocalTitle');
-const lb=$('#btnLang');lb.textContent=T('langSwitch');lb.title=T('langSwitchTitle');lb.onclick=()=>{try{localStorage.setItem('hoofprint.lang',LANG==='de'?'en':'de')}catch(e){}location.reload()};
-try{initMap()}catch(e){console.error(e);$('#map').innerHTML=`<div class="maperr">${T('mapFail')}</div>`}
-boot();
+$('#btnAdd').onclick=openAdd;$('#btnMenu').onclick=openMenu;
+window.addEventListener('hashchange',router);
+router();boot();setTimeout(offerRecovery,600);
 })();
