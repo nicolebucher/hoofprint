@@ -1,3 +1,3 @@
-/* Self-hosted so no visitor data goes to Google (both fonts: SIL Open Font License 1.1) */
-@font-face{font-family:'Bricolage Grotesque';font-style:normal;font-weight:200 800;font-stretch:75% 100%;font-display:swap;src:url(bricolage-grotesque-latin.woff2) format('woff2')}
-@font-face{font-family:'Figtree';font-style:normal;font-weight:300 900;font-display:swap;src:url(figtree-latin.woff2) format('woff2')}
+/* Self-hosted so no visitor data goes to Google (Inter and Inter Tight: SIL Open Font License 1.1) */
+@font-face{font-family:'Inter Tight';font-style:normal;font-weight:100 900;font-display:swap;src:url(inter-tight-latin.woff2?v=1) format('woff2')}
+@font-face{font-family:'Inter';font-style:normal;font-weight:100 900;font-display:swap;src:url(inter-latin.woff2?v=1) format('woff2')}
