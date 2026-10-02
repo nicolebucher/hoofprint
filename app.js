@@ -64,7 +64,7 @@ const CFG=window.HOOFPRINT_CONFIG||window.HUFSPUR_CONFIG||{};
 const sb=(CFG.supabaseUrl&&CFG.supabaseAnonKey&&window.supabase)?window.supabase.createClient(CFG.supabaseUrl,CFG.supabaseAnonKey,{auth:{persistSession:false}}):null;
 const shared={routes:[],reviews:[],photos:[]};
 const publicUrl=path=>`${CFG.supabaseUrl}/storage/v1/object/public/photos/${path}`;
-function fail(error){if(!error)return;const m=String(error.message||error);if(/rate|too many/i.test(m))throw new Error(T('rateLimited'));throw new Error(T('saveFailed')+m)}
+function fail(error){if(!error)return;const m=String(error.message||error);if(/rate|too many/i.test(m))throw new Error(T('rateLimited'));if(error.code==='PGRST202'||/could not find the function|schema cache/i.test(m))throw new Error(T('dbUpdateNeeded'));throw new Error(T('saveFailed')+m)}
 const backend=sb?{
  online:true,
  async load(){const [r,v,p]=await Promise.all([

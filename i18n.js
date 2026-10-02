@@ -3,6 +3,7 @@
 window.HOOFPRINT_I18N = {
 de: {
   locale: "de-DE",
+  dbUpdateNeeded: "Diese Funktion ist in der Datenbank noch nicht eingerichtet. Bitte das neueste Update aus dem Ordner supabase/ im Supabase SQL Editor ausführen.",
   noRoutesYetT: "Noch keine Routen", noRoutesYet: "Hier erscheinen die neuesten Reitrouten. Lade die erste hoch: per Datei aus Komoot & Co., eingezeichnet oder live aufgezeichnet.",
   newRoutes: "Neueste Routen",
   edit: "Bearbeiten", editRoute: "Route bearbeiten", editReview: "Bewertung bearbeiten", editMyReview: "Bearbeiten", saveChanges: "Änderungen speichern", changesSaved: "Änderungen gespeichert", editOnlyDevice: "Bearbeiten geht nur auf dem Gerät, mit dem der Beitrag erstellt wurde.",
@@ -101,6 +102,7 @@ de: {
 },
 en: {
   locale: "en-GB",
+  dbUpdateNeeded: "This feature is not set up in the database yet. Please run the latest update from the supabase/ folder in the Supabase SQL Editor.",
   noRoutesYetT: "No routes yet", noRoutesYet: "The newest riding routes will show up here. Add the first one: as a file from Komoot & co., drawn on the map or recorded live.",
   newRoutes: "Newest routes",
   edit: "Edit", editRoute: "Edit route", editReview: "Edit review", editMyReview: "Edit", saveChanges: "Save changes", changesSaved: "Changes saved", editOnlyDevice: "You can only edit a post on the device that created it.",
