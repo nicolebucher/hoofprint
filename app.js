@@ -139,6 +139,7 @@ function initMap(){
    "Bierpause" (places to eat) and riding stations. OSM tagging varies, so each layer queries several tag combinations. */
 const OVERPASS=['https://overpass-api.de/api/interpreter','https://overpass.private.coffee/api/interpreter','https://overpass.kumi.systems/api/interpreter'];
 const POI_MINZOOM=11;
+const APP_VERSION=(document.querySelector('script[src*="app.js"]')?.src.match(/v=([^&]+)/)||[])[1]||'dev';
 const POI_DEFS={
  food:{icon:'🍺',query:bb=>`nwr["amenity"~"^(restaurant|fast_food|cafe|biergarten|pub|ice_cream)$"](${bb});nwr["shop"="kiosk"](${bb});nwr["tourism"~"^(hotel|guest_house|alpine_hut)$"]["name"~"gasthaus|gasthof|wirtshaus|restaurant|einkehr|krug|schänke|schenke|baude",i](${bb});`,
   kind:t=>({restaurant:'restaurant',fast_food:'fast_food',cafe:'cafe',biergarten:'biergarten',pub:'pub',ice_cream:'ice_cream'})[t.amenity]||(t.shop==='kiosk'?'kiosk':'inn'),
@@ -158,7 +159,7 @@ function initPoi(){const box=L.DomUtil.create('div','poictl');L.DomEvent.disable
 function poiHint(P,txt,n){P.hint.textContent=txt||'';P.hint.hidden=!txt;P.cnt.textContent=n||'';P.cnt.hidden=!n}
 function togglePoi(P){P.on=!P.on;P.btn.setAttribute('aria-pressed',P.on);local.poi={...(local.poi||{}),[P.key]:P.on};saveLocal();
  if(P.on)loadPoi(P);else{P.layer.clearLayers();P.seen={};poiHint(P,'');P.btn.title=T(P.key+'Title')}}
-async function overpass(q){let last;for(const url of OVERPASS){try{const r=await fetch(url,{method:'POST',body:'data='+encodeURIComponent(q),headers:{'Content-Type':'application/x-www-form-urlencoded'}});if(r.ok)return await r.json();last=new Error('HTTP '+r.status)}catch(e){last=e}}throw last}
+async function overpass(q){let last;for(const url of OVERPASS){try{const r=await fetch(url,{method:'POST',body:'data='+encodeURIComponent(q),headers:{'Content-Type':'application/x-www-form-urlencoded'},signal:AbortSignal.timeout?.(15000)});if(r.ok)return await r.json();last=new Error('HTTP '+r.status)}catch(e){last=e}}throw last}
 async function loadPoi(P){if(!P.on)return;if(P.busy){P.again=true;return}
  if(map.getZoom()<POI_MINZOOM){poiHint(P,T('poiZoom'));return}
  const b=map.getBounds().pad(.3),bb=[b.getSouth(),b.getWest(),b.getNorth(),b.getEast()].map(x=>x.toFixed(4)).join(',');
@@ -468,12 +469,15 @@ function renderHome(){const regions=[...new Set(allRoutes().map(r=>(r.region||''
  <section class="hsec how"><h3>${T('howTitle')}</h3><ol>
   <li><b>${T('how1t')}</b><span>${T('how1')}</span></li><li><b>${T('how2t')}</b><span>${T('how2')}</span></li><li><b>${T('how3t')}</b><span>${T('how3')}</span></li></ol>
   <button class="btn primary" data-act="add">${T('addRoute')}</button></section>
- <footer class="foot"><span>Hoofprint</span><button class="linkbtn" data-act="lang">${T('langName')}</button><button class="linkbtn" data-act="about">${T('about')}</button></footer>`;
+ ${footHTML()}`;
  $('#regionForm').onsubmit=e=>{e.preventDefault();const v=$('#regionInput').value.trim();location.hash=v?'#/explore?region='+encodeURIComponent(v):'#/explore'};
  $('#nearMe').onclick=nearMe;
  $('#home').querySelectorAll('[data-act=add]').forEach(b=>b.onclick=openAdd);
- $('#home').querySelector('[data-act=lang]').onclick=switchLang;
- $('#home').querySelector('[data-act=about]').onclick=openAbout}
+ bindFoot()}
+function renderLegal(kind){const L=window.HOOFPRINT_LEGAL||{};
+ $('#home').innerHTML=`<article class="legal"><a class="linkbtn strong" href="#/">← ${T('navHome')}</a>${LANG==='de'?'':`<p class="muted">${T('legalGermanOnly')}</p>`}${L[kind]||''}</article>${footHTML()}`;bindFoot()}
+const footHTML=()=>`<footer class="foot"><span>Hoofprint</span><a class="linkbtn" href="#/impressum">${T('imprint')}</a><a class="linkbtn" href="#/datenschutz">${T('privacy')}</a><button class="linkbtn" data-act="lang">${T('langName')}</button><button class="linkbtn" data-act="about">${T('about')}</button></footer>`;
+function bindFoot(){$('#home').querySelector('.foot [data-act=lang]').onclick=switchLang;$('#home').querySelector('.foot [data-act=about]').onclick=openAbout}
 function nearMe(){if(!navigator.geolocation){toast(T('noGeo'));return}toast(T('locating'));
  navigator.geolocation.getCurrentPosition(p=>{location.hash='#/explore?near='+p.coords.latitude.toFixed(4)+','+p.coords.longitude.toFixed(4)},()=>toast(T('noGeo')),{timeout:10000,maximumAge:300000})}
 
@@ -494,8 +498,8 @@ function openMenu(){const favN=local.favorites.filter(byId).length,mineN=allRout
   <a href="#/">${T('navHome')}</a><a href="#/explore">${T('navExplore')}</a>
   <a href="#/saved">${T('tabFav')}<span class="count">${favN}</span></a><a href="#/mine">${T('tabMine')}<span class="count">${mineN}</span></a>
   <hr><button data-act="import">${T('import')}</button><button data-act="draw">${T('draw')}</button><button data-act="rec">${T('record')}</button>
-  <hr><button data-act="lang">${T('langName')}</button><button data-act="about">${T('about')}</button>
-  <div class="dfoot"><span class="mode">${backend.online?T('modeShared'):T('modeLocal')}</span> <span class="muted">${backend.online?T('modeSharedTitle'):T('modeLocalTitle')}</span></div></nav>`;
+  <hr><button data-act="lang">${T('langName')}</button><button data-act="about">${T('about')}</button><a href="#/impressum">${T('imprint')}</a><a href="#/datenschutz">${T('privacy')}</a>
+  <div class="dfoot"><span class="muted">Version ${APP_VERSION}</span> <span class="mode">${backend.online?T('modeShared'):T('modeLocal')}</span> <span class="muted">${backend.online?T('modeSharedTitle'):T('modeLocalTitle')}</span></div></nav>`;
  document.body.appendChild(d);const close=()=>{d.remove();document.removeEventListener('keydown',k)};function k(e){if(e.key==='Escape')close()}document.addEventListener('keydown',k);
  d.addEventListener('click',e=>{if(e.target===d||e.target.closest('[data-close],a'))close()});
  d.querySelector('[data-act=import]').onclick=()=>{close();openImport()};
@@ -513,6 +517,7 @@ function showView(v){view=v;$('#home').hidden=v!=='home';$('#explore').hidden=v!
 function router(){if(ui.draft)endDraw();if(rec&&!location.hash.startsWith('#/explore'))recPause();
  const h=location.hash.replace(/^#\/?/,''),[path,qs]=h.split('?'),parts=path.split('/'),params=new URLSearchParams(qs||'');
  if(!parts[0]){showView('home');renderHome();window.scrollTo(0,0);return}
+ if(parts[0]==='impressum'||parts[0]==='datenschutz'){showView('home');renderLegal(parts[0]);window.scrollTo(0,0);return}
  if(parts[0]==='route'){showView('explore');showRoute(decodeURIComponent(parts[1]||''));return}
  ui.sel=null;ui.tab={saved:'fav',mine:'mine'}[parts[0]]||'discover';
  const fresh=location.hash!==ui.lastList;ui.lastList=location.hash;
