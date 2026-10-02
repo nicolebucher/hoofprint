@@ -1,0 +1,7 @@
+{
+  "rewrites": [
+    { "source": "/osm/overpass", "destination": "https://overpass-api.de/api/interpreter" },
+    { "source": "/osm/overpass2", "destination": "https://overpass.private.coffee/api/interpreter" },
+    { "source": "/osm/nominatim", "destination": "https://nominatim.openstreetmap.org/search" }
+  ]
+}

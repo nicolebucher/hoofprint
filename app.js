@@ -144,7 +144,9 @@ function initMap(){
 }
 /* Optional map layers from OpenStreetMap (Overpass API), each switched on by its own button:
    "Bierpause" (places to eat) and riding stations. OSM tagging varies, so each layer queries several tag combinations. */
-const OVERPASS=['https://overpass-api.de/api/interpreter','https://overpass.private.coffee/api/interpreter','https://overpass.kumi.systems/api/interpreter'];
+/* /osm/… are same-site proxies set up in vercel.json; some browsers and networks block the OSM servers directly */
+const VIA_SITE=/^https?:/.test(location.protocol);
+const OVERPASS=[...(VIA_SITE?['osm/overpass','osm/overpass2']:[]),'https://overpass-api.de/api/interpreter','https://overpass.private.coffee/api/interpreter','https://overpass.kumi.systems/api/interpreter'];
 const POI_MINZOOM=12;
 const APP_VERSION=(document.querySelector('script[src*="app.js"]')?.src.match(/v=([^&]+)/)||[])[1]||'dev';
 const POI_DEFS={
@@ -174,13 +176,15 @@ async function overpass(q){const ctl=new AbortController(),t=setTimeout(()=>ctl.
    Nominatim allows about one request per second, so the searches run one after another. */
 const NOMI_SEARCH={food:[['amenity','restaurant'],['amenity','fast_food'],['amenity','cafe'],['amenity','biergarten'],['amenity','pub'],['q','kiosk'],['q','Gasthaus'],['q','Gasthof']],
  stations:[['q','Wanderreitstation'],['q','Reiterhof'],['q','Reitstall'],['q','Pferdehof'],['q','Reitanlage'],['q','riding']]};
+async function nomiFetch(qs){let last;for(const base of [...(VIA_SITE?['osm/nominatim']:[]),'https://nominatim.openstreetmap.org/search']){
+ try{const r=await fetch(base+'?'+qs);if(r.ok&&/json/.test(r.headers.get('content-type')||''))return r;last=new Error('HTTP '+r.status)}catch(e){last=e}}throw last}
 async function nominatimPoi(P,b){const vb=[b.getWest(),b.getNorth(),b.getEast(),b.getSouth()].map(x=>x.toFixed(4)).join(','),out=[];let ok=0,last;
  for(const [k,v] of NOMI_SEARCH[P.key]){if(!P.on)break;
-  try{const r=await fetch(`https://nominatim.openstreetmap.org/search?format=jsonv2&extratags=1&bounded=1&limit=40&accept-language=${LANG}&viewbox=${vb}&${k}=${encodeURIComponent(v)}`);if(!r.ok)throw new Error('HTTP '+r.status);
+  try{const r=await nomiFetch(`format=jsonv2&extratags=1&bounded=1&limit=40&accept-language=${LANG}&viewbox=${vb}&${k}=${encodeURIComponent(v)}`);
    const a=await r.json();ok++;
    a.forEach(x=>{const tags={...(x.extratags||{}),name:x.name||undefined};tags[x.category]=x.type;out.push({type:x.osm_type,id:x.osm_id,lat:+x.lat,lon:+x.lon,tags})})}catch(e){last=e}
   await new Promise(res=>setTimeout(res,1100))}
- if(!ok)throw new Error('Nominatim: '+(last?.message||'?'));
+ if(!ok)throw new Error('Nominatim: '+(last?.message||String(last||'?')));
  /* keep only plausible hits for the station search, which is name based */
  const keep=P.key==='stations'?out.filter(e=>e.tags.leisure==='horse_riding'||/reit|pferd|horse|riding/i.test(e.tags.name||'')):out;
  return{elements:keep}}
@@ -283,7 +287,7 @@ function openFilters(){const m=modal(`<h3>${T('filters')}</h3>
 async function findPlace(q){q=q.trim();if(!q)return;map?.invalidateSize();
  const hits=allRoutes().filter(r=>((r.region||'')+' '+r.name).toLowerCase().includes(q.toLowerCase()));
  if(hits.length){ui.place=q;ui.inView=true;if(map){const b=L.latLngBounds([]);hits.forEach(r=>r.coords.forEach(p=>b.extend([p[0],p[1]])));map.fitBounds(b,{padding:[40,40],maxZoom:12,animate:false})}renderPanel();drawRoutes();return}
- if(!map)return;try{const r=await fetch('https://nominatim.openstreetmap.org/search?format=json&limit=1&accept-language='+LANG+'&q='+encodeURIComponent(q));const j=await r.json();
+ if(!map)return;try{const r=await nomiFetch('format=json&limit=1&accept-language='+LANG+'&q='+encodeURIComponent(q));const j=await r.json();
   if(!j.length){toast(T('placeNotFound'));return}const b=j[0].boundingbox.map(Number);map.fitBounds([[b[0],b[2]],[b[1],b[3]]],{maxZoom:11,animate:false});
   ui.place=j[0].display_name.split(',')[0];ui.inView=true;renderPanel();drawRoutes()}catch(e){toast(T('placeDown'))}}
 
