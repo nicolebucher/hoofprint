@@ -10,9 +10,9 @@ impressum: `
 <h3>Verantwortlich für den Inhalt nach § 18 Abs. 2 MStV</h3>
 <p><mark>[Vorname Nachname, Anschrift wie oben]</mark></p>
 <h3>Beiträge der Nutzerinnen und Nutzer</h3>
-<p>Routen, Fotos und Bewertungen auf Hoofprint stammen von den Personen, die sie hochladen. Wir prüfen sie nicht vor der Veröffentlichung. Beiträge, die gegen Recht verstoßen, lassen sich über „Melden“ kennzeichnen und werden nach drei Meldungen automatisch ausgeblendet. Wenn wir von einem Rechtsverstoß erfahren, entfernen wir den Beitrag umgehend. Hinweise bitte an die oben genannte E-Mail-Adresse.</p>
+<p>Routen, Fotos und Bewertungen auf Hoofprints stammen von den Personen, die sie hochladen. Wir prüfen sie nicht vor der Veröffentlichung. Beiträge, die gegen Recht verstoßen, lassen sich über „Melden“ kennzeichnen und werden nach drei Meldungen automatisch ausgeblendet. Wenn wir von einem Rechtsverstoß erfahren, entfernen wir den Beitrag umgehend. Hinweise bitte an die oben genannte E-Mail-Adresse.</p>
 <h3>Haftung für Links</h3>
-<p>Hoofprint verlinkt auf Webseiten Dritter, zum Beispiel von Gasthäusern oder Reitstationen aus OpenStreetMap. Für deren Inhalte sind ausschließlich die jeweiligen Betreiber verantwortlich.</p>
+<p>Hoofprints verlinkt auf Webseiten Dritter, zum Beispiel von Gasthäusern oder Reitstationen aus OpenStreetMap. Für deren Inhalte sind ausschließlich die jeweiligen Betreiber verantwortlich.</p>
 <h3>Kartendaten</h3>
 <p>Karten und Ortsdaten © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap-Mitwirkende</a> (ODbL), OpenTopoMap (CC-BY-SA), Reitwege © Waymarked Trails.</p>
 <h3>Streitschlichtung</h3>
@@ -25,7 +25,7 @@ datenschutz: `
 <p><mark>[Vorname Nachname]</mark>, <mark>[Anschrift]</mark>, E-Mail: <mark>[E-Mail-Adresse]</mark></p>
 <h3>2. Das Wichtigste in Kürze</h3>
 <ul>
-<li>Hoofprint funktioniert ohne Benutzerkonto, ohne Cookies und ohne Werbe- oder Analyse-Tracking.</li>
+<li>Hoofprints funktioniert ohne Benutzerkonto, ohne Cookies und ohne Werbe- oder Analyse-Tracking.</li>
 <li>Was du veröffentlichst (Routen, Fotos, Bewertungen, der Name, den du dabei angibst), ist für alle sichtbar.</li>
 <li>Für Karten und Ortssuche ruft dein Browser Dienste von OpenStreetMap und Partnern auf. Dabei wird deine IP-Adresse übertragen.</li>
 </ul>

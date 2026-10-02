@@ -307,7 +307,7 @@ function profileSVG(s){if(!s.hasE)return`<p class="note">${T('noEle')}</p>`;
  <line x1="${pl}" x2="${W-pr}" y1="${H-pb}" y2="${H-pb}" stroke="var(--line)"/>
  <path d="${d} L${x(pts[pts.length-1][0])} ${H-pb} L${x(0)} ${H-pb}Z" fill="url(#pg)"/><path d="${d}" fill="none" stroke="var(--accent)" stroke-width="2"/></svg>`}
 function lightbox(src){const d=document.createElement('div');d.className='lightbox';d.innerHTML=`<img src="${src}" alt="${T('photo')}">`;d.onclick=()=>d.remove();document.addEventListener('keydown',function k(e){if(e.key==='Escape'){d.remove();document.removeEventListener('keydown',k)}});document.body.appendChild(d)}
-function toGpx(r){return`<?xml version="1.0" encoding="UTF-8"?>\n<gpx version="1.1" creator="Hoofprint" xmlns="http://www.topografix.com/GPX/1/1">\n<trk><name>${esc(r.name)}</name><type>horse_riding</type><trkseg>\n${r.coords.map(p=>`<trkpt lat="${p[0]}" lon="${p[1]}">${p[2]!=null?`<ele>${p[2]}</ele>`:''}</trkpt>`).join('\n')}\n</trkseg></trk>\n</gpx>`}
+function toGpx(r){return`<?xml version="1.0" encoding="UTF-8"?>\n<gpx version="1.1" creator="Hoofprints" xmlns="http://www.topografix.com/GPX/1/1">\n<trk><name>${esc(r.name)}</name><type>horse_riding</type><trkseg>\n${r.coords.map(p=>`<trkpt lat="${p[0]}" lon="${p[1]}">${p[2]!=null?`<ele>${p[2]}</ele>`:''}</trkpt>`).join('\n')}\n</trkseg></trk>\n</gpx>`}
 /* ---------- modal helper ---------- */
 function modal(html){const m=document.createElement('div');m.className='modal';m.innerHTML=`<div class="dialog" role="dialog" aria-modal="true">${html}</div>`;document.body.appendChild(m);
  const close=()=>{m.remove();document.removeEventListener('keydown',esc_)};function esc_(e){if(e.key==='Escape')close()}document.addEventListener('keydown',esc_);
@@ -603,7 +603,7 @@ function renderHome(){const regions=[...new Set(allRoutes().map(r=>(r.region||''
  bindFoot()}
 function renderLegal(kind){const L=window.HOOFPRINT_LEGAL||{};
  $('#home').innerHTML=`<article class="legal"><a class="linkbtn strong" href="#/">← ${T('navHome')}</a>${LANG==='de'?'':`<p class="muted">${T('legalGermanOnly')}</p>`}${L[kind]||''}</article>${footHTML()}`;bindFoot()}
-const footHTML=()=>`<footer class="foot"><span>Hoofprint</span><a class="linkbtn" href="#/impressum">${T('imprint')}</a><a class="linkbtn" href="#/datenschutz">${T('privacy')}</a><button class="linkbtn" data-act="lang">${T('langName')}</button><button class="linkbtn" data-act="about">${T('about')}</button></footer>`;
+const footHTML=()=>`<footer class="foot"><span>Hoofprints</span><a class="linkbtn" href="#/impressum">${T('imprint')}</a><a class="linkbtn" href="#/datenschutz">${T('privacy')}</a><button class="linkbtn" data-act="lang">${T('langName')}</button><button class="linkbtn" data-act="about">${T('about')}</button></footer>`;
 function bindFoot(){$('#home').querySelector('.foot [data-act=lang]').onclick=switchLang;$('#home').querySelector('.foot [data-act=about]').onclick=openAbout}
 function nearMe(){if(!navigator.geolocation){toast(T('noGeo'));return}toast(T('locating'));
  navigator.geolocation.getCurrentPosition(p=>{location.hash='#/explore?near='+p.coords.latitude.toFixed(4)+','+p.coords.longitude.toFixed(4)},()=>toast(T('noGeo')),{timeout:10000,maximumAge:300000})}

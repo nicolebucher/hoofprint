@@ -1,4 +1,4 @@
-// Hoofprint translations. Add a language by adding a block with the same keys.
+// Hoofprints translations. Add a language by adding a block with the same keys.
 // {n}, {q} etc. are placeholders filled in by T(key, {n: 3}).
 window.HOOFPRINT_I18N = {
 de: {
@@ -25,10 +25,10 @@ de: {
   recTime: "Zeit", recRunning: "Aufnahme läuft. Lass diese Seite offen und das Display an.", recPaused: "Pausiert", recIntro: "Starte, wenn du losreitest. Die Seite muss dabei offen bleiben.",
   recStart: "Aufnahme starten", recResume: "Weiter", recPause: "Pause", recFinish: "Beenden & speichern", recDiscard: "Wirklich verwerfen?",
   recName: "Ritt vom {date}", recRecoverT: "Unterbrochene Aufzeichnung", recRecover: "Es gibt eine nicht gespeicherte Aufzeichnung ({n} Punkte, {km} km). Möchtest du sie als Route speichern?",
-  pageTitle: "Hoofprint – Reitrouten",
+  pageTitle: "Hoofprints – Reitrouten",
   tagline: "Reitrouten finden, teilen, bewerten",
   draw: "Route zeichnen", drawTitle: "Route auf der Karte zeichnen",
-  import: "Route importieren", about: "Über Hoofprint",
+  import: "Route importieren", about: "Über Hoofprints",
   modeShared: "Gemeinsam", modeLocal: "Lokal",
   modeSharedTitle: "Beiträge sind für alle sichtbar", modeLocalTitle: "Beiträge bleiben in diesem Browser",
   langSwitch: "EN", langSwitchTitle: "Switch to English",
@@ -95,7 +95,7 @@ de: {
   rodeTitle: "„{name}“ geritten", rideDate: "Wann?", horseName: "Pferd", horsePh: "z. B. Cash", yourName: "Dein Name (optional)", trailNow: "Wie war der Weg?", rideStars: "Wie fandest du die Runde? (optional)", rideNote: "Hinweis für andere (optional)", rideNotePh: "z. B. Brücke am Bach gesperrt, Umweg über den Feldweg", rideSave: "Eintragen", rideThanks: "Eingetragen, danke!", rideFuture: "Das Datum liegt in der Zukunft", rideDeleted: "Eintrag gelöscht", deleteMyRide: "Meinen Eintrag löschen",
   cond_dry: "trocken", cond_muddy: "matschig", cond_highwater: "Bach führt viel Wasser", cond_overgrown: "zugewachsen", cond_blocked: "gesperrt / Hindernis", cond_mowed: "Wiesen gemäht",
   myHoofprints: "Meine Hoofprints", perMonth: "Dieser Monat", perYear: "Dieses Jahr", perAll: "Gesamt", hpRides: "Ritte", hpRoute: "Strecke", hpClimb: "Höhenmeter", hpTime: "im Sattel", kmPerMonth: "Kilometer pro Monat", myHorses: "Meine Pferde", weight: "Gewicht", hpLastRides: "Meine Ritte", hpRemove: "entfernen", hpEmptyT: "Noch keine Hoofprints", hpEmpty: "Tippe nach einem Ritt auf der Routenseite auf „Geritten!“ oder zeichne deinen Ritt per GPS auf. Hier sammeln sich dann deine Kilometer, Höhenmeter und Kalorien.", hpLocalNote: "Deine Hoofprints werden nur auf diesem Gerät gespeichert.",
-  share: "Teilen", shareTitle: "Link zu dieser Route teilen", shareText: "Reitroute „{name}“ ({km} km) auf Hoofprint", linkCopied: "Link kopiert", copyThis: "Kopiere diesen Link:",
+  share: "Teilen", shareTitle: "Link zu dieser Route teilen", shareText: "Reitroute „{name}“ ({km} km) auf Hoofprints", linkCopied: "Link kopiert", copyThis: "Kopiere diesen Link:",
   imprint: "Impressum", privacy: "Datenschutz", legalGermanOnly: "",
   food: "Raststationen", foodTitle: "Imbisse, Restaurants, Gasthäuser, Cafés und Kioske aus OpenStreetMap anzeigen", foodN1: "1 Einkehrmöglichkeit in der Nähe", foodN: "{n} Einkehrmöglichkeiten in der Nähe", foodNone: "Hier ist keine Einkehr eingetragen",
   food_restaurant: "Restaurant", food_fast_food: "Imbiss", food_cafe: "Café", food_biergarten: "Biergarten", food_pub: "Kneipe", food_ice_cream: "Eisdiele", food_kiosk: "Kiosk", food_inn: "Gasthaus",
@@ -137,10 +137,10 @@ en: {
   recTime: "Time", recRunning: "Recording. Keep this page open and the screen on.", recPaused: "Paused", recIntro: "Start when you set off. Keep this page open while riding.",
   recStart: "Start recording", recResume: "Resume", recPause: "Pause", recFinish: "Finish & save", recDiscard: "Really discard?",
   recName: "Ride on {date}", recRecoverT: "Interrupted recording", recRecover: "There is an unsaved recording ({n} points, {km} km). Save it as a route?",
-  pageTitle: "Hoofprint – Riding routes",
+  pageTitle: "Hoofprints – Riding routes",
   tagline: "Find, share and rate riding routes",
   draw: "Draw route", drawTitle: "Draw a route on the map",
-  import: "Import route", about: "About Hoofprint",
+  import: "Import route", about: "About Hoofprints",
   modeShared: "Shared", modeLocal: "Local",
   modeSharedTitle: "Posts are visible to everyone", modeLocalTitle: "Posts stay in this browser",
   langSwitch: "DE", langSwitchTitle: "Auf Deutsch umschalten",
@@ -207,7 +207,7 @@ en: {
   rodeTitle: "Rode “{name}”", rideDate: "When?", horseName: "Horse", horsePh: "e.g. Cash", yourName: "Your name (optional)", trailNow: "How was the trail?", rideStars: "How did you like the route? (optional)", rideNote: "Note for others (optional)", rideNotePh: "e.g. bridge over the stream closed, detour via the farm track", rideSave: "Add", rideThanks: "Added, thank you!", rideFuture: "That date is in the future", rideDeleted: "Entry deleted", deleteMyRide: "Delete my entry",
   cond_dry: "dry", cond_muddy: "muddy", cond_highwater: "stream running high", cond_overgrown: "overgrown", cond_blocked: "closed / obstacle", cond_mowed: "meadows mown",
   myHoofprints: "My Hoofprints", perMonth: "This month", perYear: "This year", perAll: "All time", hpRides: "Rides", hpRoute: "Distance", hpClimb: "Elevation gain", hpTime: "in the saddle", kmPerMonth: "Kilometres per month", myHorses: "My horses", weight: "Weight", hpLastRides: "My rides", hpRemove: "remove", hpEmptyT: "No Hoofprints yet", hpEmpty: "After a ride, tap “I rode it!” on the route page or record your ride with GPS. Your kilometres, climbs and calories add up here.", hpLocalNote: "Your Hoofprints are stored on this device only.",
-  share: "Share", shareTitle: "Share a link to this route", shareText: "Riding route “{name}” ({km} km) on Hoofprint", linkCopied: "Link copied", copyThis: "Copy this link:",
+  share: "Share", shareTitle: "Share a link to this route", shareText: "Riding route “{name}” ({km} km) on Hoofprints", linkCopied: "Link copied", copyThis: "Copy this link:",
   imprint: "Imprint", privacy: "Privacy", legalGermanOnly: "This page is only available in German, as required by German law.",
   food: "Rest stops", foodTitle: "Show snack bars, restaurants, inns, cafés and kiosks from OpenStreetMap", foodN1: "1 place to eat nearby", foodN: "{n} places to eat nearby", foodNone: "No places to eat mapped here",
   food_restaurant: "Restaurant", food_fast_food: "Snack bar", food_cafe: "Café", food_biergarten: "Beer garden", food_pub: "Pub", food_ice_cream: "Ice cream", food_kiosk: "Kiosk", food_inn: "Inn",

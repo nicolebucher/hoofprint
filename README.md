@@ -1,4 +1,4 @@
-# Hoofprint
+# Hoofprints
 
 *Find, share and rate horse riding routes. Available in English and German (language follows the browser; switch with the EN/DE button).*
 
