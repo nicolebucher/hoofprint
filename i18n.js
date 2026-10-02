@@ -3,6 +3,9 @@
 window.HOOFPRINT_I18N = {
 de: {
   locale: "de-DE",
+  noRoutesYetT: "Noch keine Routen", noRoutesYet: "Hier erscheinen die neuesten Reitrouten. Lade die erste hoch: per Datei aus Komoot & Co., eingezeichnet oder live aufgezeichnet.",
+  newRoutes: "Neueste Routen",
+  edit: "Bearbeiten", editRoute: "Route bearbeiten", editReview: "Bewertung bearbeiten", editMyReview: "Bearbeiten", saveChanges: "Änderungen speichern", changesSaved: "Änderungen gespeichert", editOnlyDevice: "Bearbeiten geht nur auf dem Gerät, mit dem der Beitrag erstellt wurde.",
   navHome: "Startseite", navExplore: "Routen entdecken", menu: "Menü", close: "Schließen",
   addRoute: "Route hinzufügen", addText: "Wie möchtest du deine Route hinzufügen?",
   importShort: "GPX- oder KML-Datei aus Komoot, Strava, Garmin, Equilab …", drawShort: "Wegpunkte auf der Karte setzen", record: "Ritt aufzeichnen", recordShort: "Live per GPS mit dem Handy, während du reitest", recorded: "Aufgezeichnet",
@@ -98,6 +101,9 @@ de: {
 },
 en: {
   locale: "en-GB",
+  noRoutesYetT: "No routes yet", noRoutesYet: "The newest riding routes will show up here. Add the first one: as a file from Komoot & co., drawn on the map or recorded live.",
+  newRoutes: "Newest routes",
+  edit: "Edit", editRoute: "Edit route", editReview: "Edit review", editMyReview: "Edit", saveChanges: "Save changes", changesSaved: "Changes saved", editOnlyDevice: "You can only edit a post on the device that created it.",
   navHome: "Home", navExplore: "Explore routes", menu: "Menu", close: "Close",
   addRoute: "Add route", addText: "How would you like to add your route?",
   importShort: "GPX or KML file from Komoot, Strava, Garmin, Equilab …", drawShort: "Set waypoints on the map", record: "Record a ride", recordShort: "Live GPS from your phone while you ride", recorded: "Recorded",

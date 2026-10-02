@@ -80,6 +80,8 @@ const backend=sb?{
  async addPhoto(routeId,blob){const id=uuid(),path=`${routeId}/${id}.jpg`;const up=await sb.storage.from('photos').upload(path,blob,{contentType:'image/jpeg'});fail(up.error);
   const{error}=await sb.from('photos').insert({id,route_id:routeId,path,device_id:local.deviceId});fail(error);const p={id,routeId,url:publicUrl(path)};shared.photos.unshift(p);return p},
  async remove(kind,id){const{data,error}=await sb.rpc('delete_own',{kind,target:id,dev:local.deviceId});fail(error);if(!data)throw new Error(T('deleteOnlyDevice'));dropShared(kind,id)},
+ async updateRoute(id,f){const{data,error}=await sb.rpc('update_own_route',{target:id,dev:local.deviceId,p:{name:f.name,region:f.region,difficulty:f.difficulty,surfaces:f.surfaces,features:f.features,description:f.desc}});fail(error);if(!data)throw new Error(T('editOnlyDevice'));Object.assign(shared.routes.find(x=>x.id===id)||{},f)},
+ async updateReview(id,f){const{data,error}=await sb.rpc('update_own_review',{target:id,dev:local.deviceId,p_name:f.name,p_stars:f.stars,p_text:f.text});fail(error);if(!data)throw new Error(T('editOnlyDevice'));Object.assign(shared.reviews.find(x=>x.id===id)||{},f)},
  async report(kind,id,reason){const{error}=await sb.from('reports').insert({kind,target_id:id,reason});fail(error)}
 }:{
  online:false,
@@ -88,6 +90,8 @@ const backend=sb?{
  async addReview(v){local.reviews.unshift(v);if(!saveLocal()){local.reviews.shift();throw new Error(T('storageFull'))}},
  async addPhoto(routeId,blob){const p={id:uuid(),routeId,url:await blobToDataURL(blob)};local.photos.unshift(p);if(!saveLocal()){local.photos.shift();throw new Error(T('photoStorageFull'))}return p},
  async remove(kind,id){dropShared(kind,id);saveLocal()},
+ async updateRoute(id,f){Object.assign(local.routes.find(x=>x.id===id)||{},f);saveLocal()},
+ async updateReview(id,f){Object.assign(local.reviews.find(x=>x.id===id)||{},f);saveLocal()},
  async report(){}
 };
 function dropShared(kind,id){const pick=a=>a.filter(x=>x.id!==id);
@@ -262,9 +266,9 @@ function detailHTML(r){const s=stats(r),rv=reviewsOf(r),a=avg(r),fav=local.favor
    <label class="hp" aria-hidden="true">Website<input id="revWeb" tabindex="-1" autocomplete="off"></label>
    <div class="actions"><span class="err" id="revErr"></span><button class="btn primary" type="submit">${T('submitReview')}</button></div></form>
   ${rv.map(x=>`<div class="rev"><span class="stars">${starStr(x.stars)}</span> <span class="who">${esc(x.name||T('anon'))}</span> <span class="when">· ${new Date(x.date).toLocaleDateString(LOC,{month:'long',year:'numeric'})}${x.example?' · '+T('example'):''}</span><p>${esc(x.text)}</p>
-   ${x.example?'':local.myReviews.includes(x.id)?`<button class="linkbtn" data-delrev="${esc(x.id)}">${T('deleteMyReview')}</button>`:backend.online?`<button class="linkbtn" data-report="review" data-target="${esc(x.id)}">${T('report')}</button>`:''}</div>`).join('')}
+   ${x.example?'':local.myReviews.includes(x.id)?`<button class="linkbtn" data-editrev="${esc(x.id)}">${T('editMyReview')}</button> · <button class="linkbtn" data-delrev="${esc(x.id)}">${T('deleteMyReview')}</button>`:backend.online?`<button class="linkbtn" data-report="review" data-target="${esc(x.id)}">${T('report')}</button>`:''}</div>`).join('')}
  </div></section>
- <section class="row">${isMine(r)?`<button class="btn" id="del">${ui.confirmDel===r.id?T('deleteConfirm'):T('deleteRoute')}</button>`:''}
+ <section class="row">${isMine(r)?`<button class="btn primary" id="edit">${T('edit')}</button><button class="btn" id="del">${ui.confirmDel===r.id?T('deleteConfirm'):T('deleteRoute')}</button>`:''}
   ${r.source!=='Beispiel'&&!isMine(r)&&backend.online?`<button class="linkbtn" data-report="route" data-target="${esc(r.id)}">${T('reportRoute')}</button>`:''}
   <a href="https://www.openstreetmap.org/?mlat=${c0[0]}&mlon=${c0[1]}#map=15/${c0[0]}/${c0[1]}" target="_blank" rel="noopener" style="color:var(--accent);font-size:13px">${T('osmStart')}</a></section>
  </div></div>`}
@@ -280,6 +284,8 @@ function bindDetail(){const r=byId(ui.sel);let stars=0;
   const btn=e.submitter||$('#revform button[type=submit]');btn.disabled=true;
   try{throttle();const v={id:uuid(),routeId:r.id,name:$('#revName').value.trim().slice(0,60)||T('anon'),stars,text:$('#revText').value.trim().slice(0,600),date:new Date().toISOString()};
    await backend.addReview(v);local.myReviews.push(v.id);saveLocal();toast(T('thanksReview'));renderPanel()}catch(x){err.textContent=x.message;btn.disabled=false}};
+ $('#edit')?.addEventListener('click',()=>openSave(r,r));
+ document.querySelectorAll('[data-editrev]').forEach(b=>b.onclick=()=>openEditReview(reviewsOf(r).find(x=>x.id===b.dataset.editrev)));
  document.querySelectorAll('[data-delrev]').forEach(b=>b.onclick=async()=>{try{await backend.remove('review',b.dataset.delrev);local.myReviews=local.myReviews.filter(x=>x!==b.dataset.delrev);saveLocal();toast(T('reviewDeleted'));renderPanel()}catch(x){toast(x.message)}});
  document.querySelectorAll('[data-report]').forEach(b=>b.onclick=()=>openReport(b.dataset.report,b.dataset.target));
  const del=$('#del');if(del)del.onclick=async()=>{if(ui.confirmDel!==r.id){ui.confirmDel=r.id;renderPanel();return}ui.confirmDel=null;
@@ -289,6 +295,12 @@ $('#filePhoto').onchange=async e=>{const r=byId(ui.sel);if(!r)return;const files
  saveLocal();if(ok){toast(ok>1?T('photosAdded',{n:ok}):T('photoAdded'));renderPanel()}};
 function shrink(file,max,q){return new Promise((res,rej)=>{const url=URL.createObjectURL(file);const im=new Image();im.onerror=()=>rej(new Error(T('imgUnreadable')));im.onload=()=>{const k=Math.min(1,max/Math.max(im.width,im.height));const c=document.createElement('canvas');c.width=Math.round(im.width*k);c.height=Math.round(im.height*k);c.getContext('2d').drawImage(im,0,0,c.width,c.height);URL.revokeObjectURL(url);c.toBlob(b=>b?res(b):rej(new Error(T('imgShrinkFail'))),'image/jpeg',q)};im.src=url})}
 function downloadGpx(r){const blob=new Blob([toGpx(r)],{type:'application/gpx+xml'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=(r.name.replace(/[^\wäöüÄÖÜß\- ]+/g,'').trim()||'route')+'.gpx';document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},500)}
+function openEditReview(v){if(!v)return;let stars=v.stars;
+ const m=modal(`<h3>${T('editReview')}</h3><div class="starpick" id="eStars">${[1,2,3,4,5].map(i=>`<button type="button" data-v="${i}" class="${i<=stars?'on':''}" aria-label="${T('nStars',{n:i})}">★</button>`).join('')}</div>
+ <input class="txt" id="eName" maxlength="60" value="${esc(v.name||'')}" placeholder="${T('nickPh')}"><textarea class="txt" id="eText" maxlength="600" placeholder="${T('reviewPh')}">${esc(v.text||'')}</textarea>
+ <div class="err" id="eErr"></div><div class="actions"><button class="btn" data-close>${T('cancel')}</button><button class="btn primary" id="eSave">${T('saveChanges')}</button></div>`);
+ m.querySelectorAll('#eStars button').forEach(b=>b.onclick=()=>{stars=+b.dataset.v;m.querySelectorAll('#eStars button').forEach(x=>x.classList.toggle('on',+x.dataset.v<=stars))});
+ $('#eSave',m).onclick=async e=>{e.target.disabled=true;try{await backend.updateReview(v.id,{name:$('#eName',m).value.trim().slice(0,60)||T('anon'),stars,text:$('#eText',m).value.trim().slice(0,600)});m.close();renderPanel();toast(T('changesSaved'))}catch(x){$('#eErr',m).textContent=x.message;e.target.disabled=false}}}
 function openReport(kind,id){const m=modal(`<h3>${kind==='route'?T('reportTitleRoute'):T('reportTitleReview')}</h3><p>${T('reportText')}</p>
  <select class="txt" id="rReason">${['rSpam','rAbuse','rDanger','rWrong'].map(k=>`<option value="${k}">${T(k)}</option>`).join('')}</select>
  <div class="actions"><button class="btn" data-close>${T('cancel')}</button><button class="btn primary" id="rSend">${T('report')}</button></div>`);
@@ -321,20 +333,21 @@ function openImport(){const m=modal(`<h3>${T('import')}</h3><p>${T('importText')
  inp.onchange=()=>{if(inp.files[0])handle(inp.files[0]);inp.value=''};
  drop.ondragover=e=>{e.preventDefault();drop.classList.add('over')};drop.ondragleave=()=>drop.classList.remove('over');
  drop.ondrop=e=>{e.preventDefault();drop.classList.remove('over');const f=e.dataTransfer.files[0];if(f)handle(f)}}
-function openSave(d){const s=stats({coords:d.coords});const surfOpts=['Waldweg','Feldweg','Wiesenpfad','Sandweg','Schotter','Asphalt','Strand','Almweg','Heidepfad'];
- const m=modal(`<h3>${T('saveRoute')}</h3><p>${d.coords.length} ${T('points')} · ${fmtKm(s.km)} km${s.hasE?` · ↑ ${fmtInt(s.up)} m`:' · '+T('noEleShort')} · ${s.loop?T('loop'):T('oneway')}</p>
+function openSave(d,existing){const s=stats({coords:d.coords});const ex=existing||{};const surfOpts=['Waldweg','Feldweg','Wiesenpfad','Sandweg','Schotter','Asphalt','Strand','Almweg','Heidepfad'];
+ const m=modal(`<h3>${existing?T('editRoute'):T('saveRoute')}</h3><p>${d.coords.length} ${T('points')} · ${fmtKm(s.km)} km${s.hasE?` · ↑ ${fmtInt(s.up)} m`:' · '+T('noEleShort')} · ${s.loop?T('loop'):T('oneway')}</p>
  <label class="field">${T('name')}<input class="txt" id="sName" value="${esc(d.name)}" maxlength="80"></label>
- <div class="grid2"><label class="field">${T('region')}<input class="txt" id="sRegion" placeholder="${T('regionPh')}" maxlength="80"></label>
- <label class="field">${T('difficulty')}<select class="txt" id="sDiff"><option value="leicht">${diffLabel('leicht')}</option><option value="mittel" selected>${diffLabel('mittel')}</option><option value="schwer">${diffLabel('schwer')}</option></select></label></div>
- <div class="field">${T('ground')}<div class="checks">${surfOpts.map(o=>`<label><input type="checkbox" value="${o}" name="surf">${surfLabel(o)}</label>`).join('')}</div></div>
- <div class="field">${T('forRiders')}<div class="checks">${Object.keys(FEAT).map(k=>`<label><input type="checkbox" value="${k}" name="feat">${featLabel(k)}</label>`).join('')}</div></div>
- <label class="field">${T('description')}<textarea class="txt" id="sDesc" placeholder="${T('descPh')}" maxlength="800"></textarea></label>
+ <div class="grid2"><label class="field">${T('region')}<input class="txt" id="sRegion" placeholder="${T('regionPh')}" maxlength="80" value="${esc(ex.region||'')}"></label>
+ <label class="field">${T('difficulty')}<select class="txt" id="sDiff">${['leicht','mittel','schwer'].map(v=>`<option value="${v}" ${(ex.difficulty||'mittel')===v?'selected':''}>${diffLabel(v)}</option>`).join('')}</select></label></div>
+ <div class="field">${T('ground')}<div class="checks">${surfOpts.map(o=>`<label><input type="checkbox" value="${o}" name="surf" ${ex.surfaces&&ex.surfaces[o]?'checked':''}>${surfLabel(o)}</label>`).join('')}</div></div>
+ <div class="field">${T('forRiders')}<div class="checks">${Object.keys(FEAT).map(k=>`<label><input type="checkbox" value="${k}" name="feat" ${(ex.features||[]).includes(k)?'checked':''}>${featLabel(k)}</label>`).join('')}</div></div>
+ <label class="field">${T('description')}<textarea class="txt" id="sDesc" placeholder="${T('descPh')}" maxlength="800">${esc(ex.desc||'')}</textarea></label>
  <label class="hp" aria-hidden="true">Website<input id="sWeb" tabindex="-1" autocomplete="off"></label>
- <p>${backend.online?T('saveNoteShared'):T('saveNoteLocal')}</p>
- <div class="err" id="sErr"></div><div class="actions"><button class="btn" data-close>${T('discard')}</button><button class="btn primary" id="sSave">${backend.online?T('publish'):T('store')}</button></div>`);
+ ${existing?'':`<p>${backend.online?T('saveNoteShared'):T('saveNoteLocal')}</p>`}
+ <div class="err" id="sErr"></div><div class="actions"><button class="btn" data-close>${T('discard')}</button><button class="btn primary" id="sSave">${existing?T('saveChanges'):backend.online?T('publish'):T('store')}</button></div>`);
  $('#sSave',m).onclick=async e=>{if($('#sWeb',m).value){m.close();return}const sf=[...m.querySelectorAll('[name=surf]:checked')].map(x=>x.value);const surfaces={};sf.forEach(k=>surfaces[k]=Math.round(100/sf.length));
   const r={id:uuid(),name:$('#sName',m).value.trim().slice(0,80)||T('untitled'),region:$('#sRegion',m).value.trim().slice(0,80),difficulty:$('#sDiff',m).value,surfaces:sf.length?surfaces:{Unbekannt:100},features:[...m.querySelectorAll('[name=feat]:checked')].map(x=>x.value),desc:$('#sDesc',m).value.trim().slice(0,800),coords:d.coords,source:d.source,createdAt:new Date().toISOString()};
-  e.target.disabled=true;try{throttle();await backend.addRoute(r);local.mine.push(r.id);saveLocal();m.close();drawRoutes();select(r.id);toast(backend.online?T('published'):T('stored'))}catch(x){$('#sErr',m).textContent=x.message;e.target.disabled=false}}}
+  e.target.disabled=true;if(existing){try{const f={name:r.name,region:r.region,difficulty:r.difficulty,surfaces:r.surfaces,features:r.features,desc:r.desc};await backend.updateRoute(existing.id,f);m.close();drawRoutes();renderPanel();toast(T('changesSaved'))}catch(x){$('#sErr',m).textContent=x.message;e.target.disabled=false}return}
+  try{throttle();await backend.addRoute(r);local.mine.push(r.id);saveLocal();m.close();drawRoutes();select(r.id);toast(backend.online?T('published'):T('stored'))}catch(x){$('#sErr',m).textContent=x.message;e.target.disabled=false}}}
 
 /* ---------- draw mode ---------- */
 let draftLayer=null,draftMarkers=[];
@@ -394,7 +407,8 @@ function offerRecovery(){const pts=local.recording;if(!pts||pts.length<2)return;
  $('#rvYes',m).onclick=()=>{delete local.recording;saveLocal();m.close();openSave({name:T('recName',{date:new Date().toLocaleDateString(LOC)}),coords:pts,source:'Aufgezeichnet'})}}
 
 /* ---------- home ---------- */
-function topRoutes(){return allRoutes().slice().sort((a,b)=>(avg(b)*Math.min(reviewsOf(b).length,3))-(avg(a)*Math.min(reviewsOf(a).length,3))||String(b.createdAt).localeCompare(String(a.createdAt))).slice(0,6)}
+function newRoutes(){return allRoutes().slice().sort((a,b)=>String(b.createdAt).localeCompare(String(a.createdAt))).slice(0,3)}
+function topRoutes(){return allRoutes().filter(r=>reviewsOf(r).length).slice().sort((a,b)=>(avg(b)*Math.min(reviewsOf(b).length,3))-(avg(a)*Math.min(reviewsOf(a).length,3))||String(b.createdAt).localeCompare(String(a.createdAt))).slice(0,6)}
 function tileHTML(r){const s=stats(r),a=avg(r),n=reviewsOf(r).length,ph=photosOf(r)[0];
  return`<a class="tile" href="#/route/${encodeURIComponent(r.id)}">${ph?`<img src="${esc(ph.src)}" alt="" loading="lazy">`:'<div class="ph"></div>'}
  <div class="tbody"><div class="tmeta"><span class="pill d-${esc(r.difficulty)}">${esc(diffLabel(r.difficulty))}</span>${n?`<span class="stars">★ ${a.toLocaleString(LOC,{maximumFractionDigits:1})}</span><span class="muted">(${n})</span>`:''}</div>
@@ -408,15 +422,17 @@ function renderHome(){const regions=[...new Set(allRoutes().map(r=>(r.region||''
   <div class="herobtns"><button class="linkbtn strong" id="nearMe">${ICON.near} ${T('nearMe')}</button><a class="linkbtn strong" href="#/explore">${T('browseMap')} →</a></div>
   <div class="quick"><span class="muted">${T('popular')}</span>${quick.map(([k,l])=>`<a class="chip" href="#/explore?f=${k}">${l}</a>`).join('')}</div>
  </div></section>
- <section class="hsec"><div class="sechead"><h3>${T('topRoutes')}</h3><a href="#/explore">${T('allRoutes')} →</a></div>
-  <div class="topgrid">${ui.loading?`<p class="muted">${T('loading')}</p>`:topRoutes().map(tileHTML).join('')}</div></section>
+ <section class="hsec"><div class="sechead"><h3>${T('newRoutes')}</h3><a href="#/explore?sort=new">${T('allRoutes')} →</a></div>
+  <div class="topgrid">${ui.loading?`<p class="muted">${T('loading')}</p>`:newRoutes().length?newRoutes().map(tileHTML).join(''):`<div class="empty homeempty"><strong>${T('noRoutesYetT')}</strong>${T('noRoutesYet')}<button class="btn primary" data-act="add">${T('addRoute')}</button></div>`}</div></section>
+ ${!ui.loading&&topRoutes().length?`<section class="hsec"><div class="sechead"><h3>${T('topRoutes')}</h3><a href="#/explore">${T('allRoutes')} →</a></div>
+  <div class="topgrid">${topRoutes().map(tileHTML).join('')}</div></section>`:''}
  <section class="hsec how"><h3>${T('howTitle')}</h3><ol>
   <li><b>${T('how1t')}</b><span>${T('how1')}</span></li><li><b>${T('how2t')}</b><span>${T('how2')}</span></li><li><b>${T('how3t')}</b><span>${T('how3')}</span></li></ol>
   <button class="btn primary" data-act="add">${T('addRoute')}</button></section>
  <footer class="foot"><span>Hoofprint</span><button class="linkbtn" data-act="lang">${T('langName')}</button><button class="linkbtn" data-act="about">${T('about')}</button></footer>`;
  $('#regionForm').onsubmit=e=>{e.preventDefault();const v=$('#regionInput').value.trim();location.hash=v?'#/explore?region='+encodeURIComponent(v):'#/explore'};
  $('#nearMe').onclick=nearMe;
- $('#home').querySelector('[data-act=add]').onclick=openAdd;
+ $('#home').querySelectorAll('[data-act=add]').forEach(b=>b.onclick=openAdd);
  $('#home').querySelector('[data-act=lang]').onclick=switchLang;
  $('#home').querySelector('[data-act=about]').onclick=openAbout}
 function nearMe(){if(!navigator.geolocation){toast(T('noGeo'));return}toast(T('locating'));
@@ -462,6 +478,7 @@ function router(){if(ui.draft)endDraw();if(rec&&!location.hash.startsWith('#/exp
  ui.sel=null;ui.tab={saved:'fav',mine:'mine'}[parts[0]]||'discover';
  const fresh=location.hash!==ui.lastList;ui.lastList=location.hash;
  if(fresh&&(ui.tab!=='discover'||params.has('f')||params.has('region')||params.has('near'))){resetFilters();ui.q=''}
+ if(fresh&&params.get('sort'))ui.sort=params.get('sort');
  const f=params.get('f');if(fresh&&f){if(['leicht','mittel','schwer'].includes(f))ui.diff.add(f);else if(FEAT[f])ui.feats.add(f)}
  showView('explore');renderPanel();drawRoutes();styleRoutes();
  if(fresh){const region=params.get('region'),near=params.get('near');

@@ -13,6 +13,7 @@ Reitrouten finden, teilen und bewerten, auf Englisch und Deutsch. Auf echten Ope
 - **Ritt aufzeichnen:** live per GPS im Browser. Die Seite muss dabei offen und das Display an bleiben; für Aufzeichnung mit gesperrtem Handy braucht es später eine App.
 - **Entdecken:** Karte und Liste mit Suche; alle Filter in einem eigenen Fenster: Schwierigkeit, Länge, Hängerparkplatz, Galoppstrecke, Wasserstelle, Einkehr und Strand.
 - **Routendetails:** Länge, Dauer, Höhenprofil, Wegbeschaffenheit, Fotos, Bewertungen und GPX-Download.
+- **Bearbeiten:** eigene Routen und Bewertungen lassen sich auf demselben Gerät ändern oder löschen.
 - **Beitragen ohne Konto:** Routen importieren oder zeichnen, Fotos hochladen, bewerten.
 - **Schutz:** Jeder Beitrag trägt eine zufällige Geräte-Kennung, die öffentlich nicht lesbar ist. Damit lassen sich eigene Beiträge auf demselben Gerät löschen und später einem Konto zuordnen.
 - **Moderation:** Es gibt eine Melden-Funktion. Nach 3 Meldungen wird ein Beitrag automatisch ausgeblendet. Pro Gerät sind höchstens 10 Beiträge in 10 Minuten erlaubt.
@@ -57,6 +58,10 @@ Die Seite funktioniert also sofort und wird gemeinsam, sobald die Datenbank ange
 4. Speichern, committen, fertig. Oben in der Seite steht dann **Gemeinsam** statt **Lokal**.
 
 Die Beispielrouten blendest du mit `showExamples: false` in `config.js` aus.
+
+### Updates der Datenbank
+
+Wenn schon eine Datenbank läuft, führe neue Dateien `supabase/update-*.sql` einmal im SQL Editor aus (aktuell: `update-2026-10-02-edit.sql` für „Beiträge bearbeiten“). `schema.sql` enthält immer alles für eine neue Einrichtung.
 
 ### Gemeldete Beiträge prüfen
 

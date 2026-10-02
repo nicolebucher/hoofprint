@@ -4,5 +4,6 @@
 // The anon key is meant to be public; the database rules in supabase/schema.sql protect the data.
 window.HOOFPRINT_CONFIG = {
   supabaseUrl: "https://pobfickelrmhyjzcwhts.supabase.co",
-  supabaseAnonKey: "sb_publishable_7TA05RXFlqWRObdtGSqJpw_c3Eg0fpE"
+  supabaseAnonKey: "sb_publishable_7TA05RXFlqWRObdtGSqJpw_c3Eg0fpE",
+  showExamples: false   // true shows the six made-up demo routes
 };
