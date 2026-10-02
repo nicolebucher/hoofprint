@@ -5,40 +5,37 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Hoofprint – Riding routes</title>
 <meta name="description" content="Find, share and rate horse riding routes. Import rides from Komoot, Strava, Garmin or Equilab. Reitrouten finden, teilen und bewerten.">
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 34 34'%3E%3Ccircle cx='17' cy='17' r='16' fill='%232b4a9c'/%3E%3Cpath d='M10 25V15a7 7 0 0 1 14 0v10' fill='none' stroke='white' stroke-width='3.2' stroke-linecap='round'/%3E%3C/svg%3E">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'%3E%3Crect width='48' height='48' rx='12' fill='%23ffffff'/%3E%3Cg transform='translate%2815 29.5%29 rotate%28-10%29 scale%28.92%29'%3E%3Cpath d='M-4.3 -7.6 C-7.4 -5.6 -8.4 -1.4 -7.6 2.6 C-6.8 6.6 -3.8 8.6 0 8.6 C3.8 8.6 6.8 6.6 7.6 2.6 C8.4 -1.4 7.4 -5.6 4.3 -7.6' fill='none' stroke='%230e5e5f' stroke-width='3.9' stroke-linecap='round'/%3E%3Cg fill='%23ffffff'%3E%3Crect x='-8.1' y='-3.4' width='1.6' height='.9' rx='.45' transform='rotate%28-70 -7.3 -3%29'/%3E%3Crect x='-7.9' y='1.6' width='1.6' height='.9' rx='.45' transform='rotate%28-100 -7.1 2%29'/%3E%3Crect x='6.5' y='-3.4' width='1.6' height='.9' rx='.45' transform='rotate%2870 7.3 -3%29'/%3E%3Crect x='6.3' y='1.6' width='1.6' height='.9' rx='.45' transform='rotate%28100 7.1 2%29'/%3E%3C/g%3E%3C/g%3E%3Cg transform='translate%2832.5 18.5%29 rotate%2810%29 scale%28.92%29'%3E%3Cpath d='M-4.3 -7.6 C-7.4 -5.6 -8.4 -1.4 -7.6 2.6 C-6.8 6.6 -3.8 8.6 0 8.6 C3.8 8.6 6.8 6.6 7.6 2.6 C8.4 -1.4 7.4 -5.6 4.3 -7.6' fill='none' stroke='%230e5e5f' stroke-width='3.9' stroke-linecap='round'/%3E%3Cg fill='%23ffffff'%3E%3Crect x='-8.1' y='-3.4' width='1.6' height='.9' rx='.45' transform='rotate%28-70 -7.3 -3%29'/%3E%3Crect x='-7.9' y='1.6' width='1.6' height='.9' rx='.45' transform='rotate%28-100 -7.1 2%29'/%3E%3Crect x='6.5' y='-3.4' width='1.6' height='.9' rx='.45' transform='rotate%2870 7.3 -3%29'/%3E%3Crect x='6.3' y='1.6' width='1.6' height='.9' rx='.45' transform='rotate%28100 7.1 2%29'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Zilla+Slab:wght@500;600;700&family=Source+Sans+3:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700;12..96,800&family=Figtree:wght@400;500;600;700&display=swap">
 <style>
-/* Layout: one-screen app. Sidebar (list ↔ detail) beside a full-height sketch map; stacks map-over-panel on phones. */
+/* Layout: one-screen app. White top bar, list/detail sidebar beside a full-height map; stacks map over panel on phones. */
 :root{
-  --bg:#eef1ea; --surface:#fbfcf8; --surface-2:#e3e8dc; --line:#cdd5c4;
-  --fg:#1d261f; --muted:#5b6858; --accent:#2b4a9c; --accent-fg:#ffffff; --accent-soft:#dde4f5;
-  --brass:#b07d1e; --heart:#c0392b;
-  --easy:#2f7d43; --mid:#b26b00; --hard:#b3261e;
-  --route:#2b4a9c; --route-sel:#d2531a; --route-case:#ffffff;
-  --map-ground:#e6ebdd; --map-meadow:#d5e3bd; --map-field1:#e9e2bf; --map-field2:#dfe6b9; --map-field3:#cfdca9; --map-forest:#8fb27c; --map-forest2:#7aa16a; --map-water:#a8c8e2; --map-outline:#8c9a82;
-  --shadow:0 1px 2px rgba(29,38,31,.08),0 6px 20px rgba(29,38,31,.08);
-  --f-display:"Zilla Slab",Rockwell,"Roboto Slab",Georgia,serif;
-  --f-body:"Source Sans 3","Segoe UI",system-ui,-apple-system,sans-serif;
-  --r:10px;
+  --bg:#f5f8f7; --surface:#ffffff; --surface-2:#eef4f3; --line:#dce5e3;
+  --fg:#11201f; --muted:#5b6d6b; --accent:#0e5e5f; --accent-hover:#0b4d4e; --accent-fg:#ffffff; --accent-soft:#e0efed;
+  --brass:#d08a1f; --heart:#d64545;
+  --easy:#1f7a4d; --mid:#b46a00; --hard:#c23b2e;
+  --route:#0e6e6f; --route-sel:#e2603a; --route-case:#ffffff;
+  --shadow:0 1px 2px rgba(14,40,40,.06),0 8px 24px rgba(14,40,40,.08);
+  --f-display:"Bricolage Grotesque","Avenir Next","Segoe UI",system-ui,sans-serif;
+  --f-body:"Figtree","Segoe UI",system-ui,-apple-system,sans-serif;
+  --r:14px;
 }
 @media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
-  --bg:#141a16; --surface:#1b231e; --surface-2:#253029; --line:#34413a;
-  --fg:#e7ede4; --muted:#9fae9c; --accent:#8fa8ef; --accent-fg:#0f1830; --accent-soft:#25304d;
-  --brass:#e0b257; --heart:#ff7a6b;
-  --easy:#6cc785; --mid:#f0a63a; --hard:#ff7d74;
-  --route:#8fa8ef; --route-sel:#ff9a5c; --route-case:#0f1512;
-  --map-ground:#1d2620; --map-meadow:#24301f; --map-field1:#2e2f22; --map-field2:#2a3221; --map-field3:#26301d; --map-forest:#1a3220; --map-forest2:#15291a; --map-water:#1d3448; --map-outline:#5a6a5c;
-  --shadow:0 1px 2px rgba(0,0,0,.3),0 6px 20px rgba(0,0,0,.35); color-scheme:dark }}
+  --bg:#0c1615; --surface:#12201f; --surface-2:#1a2c2b; --line:#273b39;
+  --fg:#e5efed; --muted:#94a9a6; --accent:#4cbdb8; --accent-hover:#6fd0cb; --accent-fg:#052120; --accent-soft:#16393a;
+  --brass:#f0b44f; --heart:#ff7a72;
+  --easy:#5fd396; --mid:#f2a43a; --hard:#ff7f73;
+  --route:#4cbdb8; --route-sel:#ff8a5c; --route-case:#0a1312;
+  --shadow:0 1px 2px rgba(0,0,0,.35),0 8px 24px rgba(0,0,0,.35); color-scheme:dark }}
 :root[data-theme="dark"]{
-  --bg:#141a16; --surface:#1b231e; --surface-2:#253029; --line:#34413a;
-  --fg:#e7ede4; --muted:#9fae9c; --accent:#8fa8ef; --accent-fg:#0f1830; --accent-soft:#25304d;
-  --brass:#e0b257; --heart:#ff7a6b;
-  --easy:#6cc785; --mid:#f0a63a; --hard:#ff7d74;
-  --route:#8fa8ef; --route-sel:#ff9a5c; --route-case:#0f1512;
-  --map-ground:#1d2620; --map-meadow:#24301f; --map-field1:#2e2f22; --map-field2:#2a3221; --map-field3:#26301d; --map-forest:#1a3220; --map-forest2:#15291a; --map-water:#1d3448; --map-outline:#5a6a5c;
-  --shadow:0 1px 2px rgba(0,0,0,.3),0 6px 20px rgba(0,0,0,.35); color-scheme:dark }
+  --bg:#0c1615; --surface:#12201f; --surface-2:#1a2c2b; --line:#273b39;
+  --fg:#e5efed; --muted:#94a9a6; --accent:#4cbdb8; --accent-hover:#6fd0cb; --accent-fg:#052120; --accent-soft:#16393a;
+  --brass:#f0b44f; --heart:#ff7a72;
+  --easy:#5fd396; --mid:#f2a43a; --hard:#ff7f73;
+  --route:#4cbdb8; --route-sel:#ff8a5c; --route-case:#0a1312;
+  --shadow:0 1px 2px rgba(0,0,0,.35),0 8px 24px rgba(0,0,0,.35); color-scheme:dark }
 
 /* Leaflet overrides */
 .leaflet-touch .leaflet-bar,.leaflet-bar{box-shadow:var(--shadow);border-radius:8px;overflow:hidden;border:1px solid var(--line)}
@@ -192,13 +189,57 @@ textarea.txt{min-height:70px;resize:vertical}
 .hp{position:absolute;left:-9999px;width:1px;height:1px;overflow:hidden}
 .loading{padding:28px 16px;color:var(--muted)}
 @media (prefers-color-scheme: dark){.leaflet-tile-pane{filter:brightness(.8) saturate(.9)}}
+
+/* --- refresh --- */
+header.top{box-shadow:0 1px 0 var(--line);border-bottom:none;padding-block:12px}
+.logo{border-radius:12px;box-shadow:0 0 0 1px var(--line),0 2px 8px rgba(14,60,60,.12);flex:none}
+.brand h1{font:800 26px/1 var(--f-display);letter-spacing:-.02em;color:var(--fg)}
+.brand small{letter-spacing:.02em;text-transform:none;font-size:13px}
+.btn{border-radius:10px;padding:8px 14px;transition:background .15s,transform .1s}
+.btn:active{transform:translateY(1px)}
+.btn.primary:hover{filter:none;background:var(--accent-hover);border-color:var(--accent-hover)}
+.mode{border-radius:999px;background:var(--accent-soft);color:var(--accent);letter-spacing:.04em}
+.panel{background:var(--surface)}
+.tabs{gap:2px;padding:12px 16px;border-bottom:none;overflow-x:auto}
+.tab{border:none;border-radius:999px;padding:7px 11px;margin:0;color:var(--muted);background:transparent}
+.tab[aria-selected="true"]{background:var(--fg);color:var(--surface)}
+.tab[aria-selected="true"] .count{background:color-mix(in srgb,var(--surface) 22%,transparent);color:var(--surface)}
+.filters{padding:4px 16px 16px;border-bottom:1px solid var(--line)}
+.search{border-radius:12px;background:var(--surface-2);border-color:transparent;padding:0 12px}
+.search:focus-within{border-color:var(--accent);background:var(--surface)}
+.chip{border-color:var(--line);color:var(--fg);font-weight:600;padding:5px 12px}
+.chip:hover{border-color:var(--accent)}
+.chip[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--accent-fg)}
+.card{grid-template-columns:92px 1fr;gap:14px;padding:14px 16px;transition:background .15s}
+.thumb{width:92px;height:92px;border-radius:12px}
+.card h3{font:700 19px/1.15 var(--f-display);letter-spacing:-.01em;margin:2px 0}
+.src{letter-spacing:.05em;color:var(--accent)}
+.pill{border:none;border-radius:999px;padding:2px 9px;background:color-mix(in srgb,currentColor 13%,transparent);letter-spacing:.04em}
+.dhead{border-bottom:1px solid var(--line)}
+.dtitle h2{font:800 32px/1.05 var(--f-display);letter-spacing:-.02em}
+.kpis{border-radius:var(--r);gap:0;background:var(--surface-2);border:none}
+.kpi{background:transparent;padding:12px 10px}
+.kpi b{font:700 22px/1.1 var(--f-display)}
+section h4{color:var(--fg);letter-spacing:.06em}
+.feat span{border-radius:999px;background:var(--accent-soft);color:var(--fg);padding:5px 11px}
+.feat svg{color:var(--accent)}
+.note{border-left-color:var(--accent);background:var(--surface-2)}
+.gallery img{border-radius:10px}
+.uploader{border-radius:10px}
+form.revform{background:var(--surface-2);border:none}
+.rating-sum b{font:800 36px var(--f-display)}
+.dialog{border-radius:18px}
+.dialog h3{font:800 24px var(--f-display);letter-spacing:-.01em}
+.drop{border-radius:14px}
+.pin{background:var(--route)}
+.pin svg{width:16px;height:16px;stroke-width:2.6}
 </style>
 </head>
 <body>
 <div class="app">
   <header class="top">
     <div class="brand">
-      <svg width="34" height="34" viewBox="0 0 34 34" aria-hidden="true"><circle cx="17" cy="17" r="16" fill="var(--accent)"/><path d="M10 25V15a7 7 0 0 1 14 0v10" fill="none" stroke="var(--accent-fg)" stroke-width="3.2" stroke-linecap="round"/><circle cx="12" cy="18" r="1.1" fill="var(--accent)"/><g fill="var(--accent)"><circle cx="10" cy="18.5" r="1"/><circle cx="24" cy="18.5" r="1"/><circle cx="10" cy="22.5" r="1"/><circle cx="24" cy="22.5" r="1"/></g></svg>
+      <svg class="logo" width="40" height="40" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48"><rect width="48" height="48" rx="12" fill="var(--surface)"/><g transform="translate(15 29.5) rotate(-10) scale(.92)"><path d="M-4.3 -7.6 C-7.4 -5.6 -8.4 -1.4 -7.6 2.6 C-6.8 6.6 -3.8 8.6 0 8.6 C3.8 8.6 6.8 6.6 7.6 2.6 C8.4 -1.4 7.4 -5.6 4.3 -7.6" fill="none" stroke="var(--accent)" stroke-width="3.9" stroke-linecap="round"/><g fill="var(--surface)"><rect x="-8.1" y="-3.4" width="1.6" height=".9" rx=".45" transform="rotate(-70 -7.3 -3)"/><rect x="-7.9" y="1.6" width="1.6" height=".9" rx=".45" transform="rotate(-100 -7.1 2)"/><rect x="6.5" y="-3.4" width="1.6" height=".9" rx=".45" transform="rotate(70 7.3 -3)"/><rect x="6.3" y="1.6" width="1.6" height=".9" rx=".45" transform="rotate(100 7.1 2)"/></g></g><g transform="translate(32.5 18.5) rotate(10) scale(.92)"><path d="M-4.3 -7.6 C-7.4 -5.6 -8.4 -1.4 -7.6 2.6 C-6.8 6.6 -3.8 8.6 0 8.6 C3.8 8.6 6.8 6.6 7.6 2.6 C8.4 -1.4 7.4 -5.6 4.3 -7.6" fill="none" stroke="var(--accent)" stroke-width="3.9" stroke-linecap="round"/><g fill="var(--surface)"><rect x="-8.1" y="-3.4" width="1.6" height=".9" rx=".45" transform="rotate(-70 -7.3 -3)"/><rect x="-7.9" y="1.6" width="1.6" height=".9" rx=".45" transform="rotate(-100 -7.1 2)"/><rect x="6.5" y="-3.4" width="1.6" height=".9" rx=".45" transform="rotate(70 7.3 -3)"/><rect x="6.3" y="1.6" width="1.6" height=".9" rx=".45" transform="rotate(100 7.1 2)"/></g></g></svg>
       <div><h1>Hoofprint</h1><small data-i18n="tagline">Find, share and rate riding routes</small></div>
     </div>
     <span class="mode" id="mode">…</span>

@@ -115,7 +115,7 @@ const ui={tab:'discover',q:'',diff:new Set(),feats:new Set(),maxKm:40,sort:'rati
 
 /* ---------- map ---------- */
 let map=null,routeLayers={},startMarkers={};
-const HORSESHOE='<svg viewBox="0 0 24 24"><path d="M6 20V11a6 6 0 0 1 12 0v9"/></svg>';
+const HORSESHOE='<svg viewBox="0 0 24 24"><path d="M8 4.5C5.8 6 5 8.6 5.4 11.4c.5 3.4 3 5.4 6.6 5.4s6.1-2 6.6-5.4C19 8.6 18.2 6 16 4.5"/></svg>';
 function initMap(){
  if(typeof L==='undefined'){$('#map').innerHTML=`<div class="maperr">${T('mapFail')}</div>`;return}
  map=L.map('map',{zoomControl:false,minZoom:4,maxZoom:18}).setView([51.2,10.4],6);
