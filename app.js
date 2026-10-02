@@ -146,7 +146,7 @@ function initMap(){
    "Bierpause" (places to eat) and riding stations. OSM tagging varies, so each layer queries several tag combinations. */
 /* /osm/… are same-site proxies set up in vercel.json; some browsers and networks block the OSM servers directly */
 const VIA_SITE=/^https?:/.test(location.protocol);
-const OVERPASS=[...(VIA_SITE?['osm/overpass','osm/overpass2']:[]),'https://overpass-api.de/api/interpreter','https://overpass.private.coffee/api/interpreter','https://overpass.kumi.systems/api/interpreter'];
+const OVERPASS=[...(VIA_SITE?['api/osm?service=overpass&','osm/overpass?']:[]),'https://overpass-api.de/api/interpreter?','https://overpass.private.coffee/api/interpreter?','https://overpass.kumi.systems/api/interpreter?'];
 const POI_MINZOOM=12;
 const APP_VERSION=(document.querySelector('script[src*="app.js"]')?.src.match(/v=([^&]+)/)||[])[1]||'dev';
 const POI_DEFS={
@@ -169,15 +169,15 @@ function poiHint(P,txt,n){P.hint.textContent=txt||'';P.hint.hidden=!txt;P.cnt.te
 function togglePoi(P){P.on=!P.on;P.btn.setAttribute('aria-pressed',P.on);local.poi={...(local.poi||{}),[P.key]:P.on};saveLocal();
  if(P.on)loadPoi(P);else{P.layer.clearLayers();P.seen={};poiHint(P,'');P.btn.title=T(P.key+'Title')}}
 /* Ask all servers at once and take the first good answer; public Overpass servers are often busy */
-async function overpass(q){const ctl=new AbortController(),t=setTimeout(()=>ctl.abort(),12000);
- try{return await Promise.any(OVERPASS.map(async url=>{const r=await fetch(url+'?data='+encodeURIComponent(q),{signal:ctl.signal});if(!r.ok)throw new Error(url+' HTTP '+r.status);const j=await r.json();if(!Array.isArray(j.elements))throw new Error(url+' bad');return j}))}
+async function overpass(q){const ctl=new AbortController(),t=setTimeout(()=>ctl.abort(),18000);
+ try{return await Promise.any(OVERPASS.map(async url=>{const r=await fetch(url+'data='+encodeURIComponent(q),{signal:ctl.signal});if(!r.ok){let d='';try{d=(await r.json()).error||''}catch(e){}throw new Error(url.split('?')[0].replace(/^https:\/\//,'')+' '+r.status+(d?' '+d:''))}const j=await r.json();if(!Array.isArray(j.elements))throw new Error(url+' bad');return j}))}
  finally{clearTimeout(t);ctl.abort()}}
 /* Fallback when every Overpass server fails: OpenStreetMap's Nominatim search, limited to the map view.
    Nominatim allows about one request per second, so the searches run one after another. */
 const NOMI_SEARCH={food:[['amenity','restaurant'],['amenity','fast_food'],['amenity','cafe'],['amenity','biergarten'],['amenity','pub'],['q','kiosk'],['q','Gasthaus'],['q','Gasthof']],
  stations:[['q','Wanderreitstation'],['q','Reiterhof'],['q','Reitstall'],['q','Pferdehof'],['q','Reitanlage'],['q','riding']]};
-async function nomiFetch(qs){let last;for(const base of [...(VIA_SITE?['osm/nominatim']:[]),'https://nominatim.openstreetmap.org/search']){
- try{const r=await fetch(base+'?'+qs);if(r.ok&&/json/.test(r.headers.get('content-type')||''))return r;last=new Error('HTTP '+r.status)}catch(e){last=e}}throw last}
+async function nomiFetch(qs){let last;for(const base of [...(VIA_SITE?['api/osm?service=nominatim&','osm/nominatim?']:[]),'https://nominatim.openstreetmap.org/search?']){
+ try{const r=await fetch(base+qs);if(r.ok&&/json/.test(r.headers.get('content-type')||''))return r;last=new Error('HTTP '+r.status)}catch(e){last=e}}throw last}
 async function nominatimPoi(P,b){const vb=[b.getWest(),b.getNorth(),b.getEast(),b.getSouth()].map(x=>x.toFixed(4)).join(','),out=[];let ok=0,last;
  for(const [k,v] of NOMI_SEARCH[P.key]){if(!P.on)break;
   try{const r=await nomiFetch(`format=jsonv2&extratags=1&bounded=1&limit=40&accept-language=${LANG}&viewbox=${vb}&${k}=${encodeURIComponent(v)}`);
