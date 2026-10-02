@@ -291,29 +291,30 @@ function modal(html){const m=document.createElement('div');m.className='modal';m
    Horse: net cost per kg and km by gait plus lifting work for the climb at ~25 % efficiency.
    Rider: MET values for horse riding (walk 3.8, trot 5.8, canter 7.3) x body weight x time. */
 const GAITS=[{k:'walk',share:.6,kmh:6,horse:.30,met:3.8},{k:'trot',share:.35,kmh:12,horse:.45,met:5.8},{k:'canter',share:.05,kmh:20,horse:.60,met:7.3}];
+const HORSE_TYPES=[['ePony',350],['eThoroughbred',480],['eWarmblood',600],['eDraft',800]];
 const HAY_KCAL=1900,BEER_KCAL=215,TACK_KG=10;
 function energy(s,horseKg,riderKg){const mass=horseKg+riderKg+TACK_KG;let horse=0,rider=0;
  GAITS.forEach(g=>{const km=s.km*g.share;horse+=mass*g.horse*km;rider+=g.met*riderKg*km/g.kmh});
  const climb=s.hasE?mass*9.81*s.up/.25/4184:0;horse+=climb;rider+=s.hasE?riderKg*9.81*s.up/.25/4184*.15:0;
  return{horse:Math.round(horse/50)*50,rider:Math.round(rider/10)*10}}
-function energyHTML(s){const hk=local.horseKg||550,rk=local.riderKg||70,e=energy(s,hk,rk);
+function energyHTML(s){const hk=local.horseKg||600,rk=local.riderKg||70,e=energy(s,hk,rk);
  return`<section class="energy"><h4>${T('energy')}</h4>
  <div class="ekpis"><div class="ekpi"><span class="eic">🐴</span><b id="eHorse">${fmtInt(e.horse)} kcal</b><span id="eHay">${T('eHay',{n:(e.horse/HAY_KCAL).toLocaleString(LOC,{maximumFractionDigits:1})})}</span></div>
  <div class="ekpi"><span class="eic">🧑</span><b id="eRider">${fmtInt(e.rider)} kcal</b><span id="eBeer">${T('eBeer',{n:(e.rider/BEER_KCAL).toLocaleString(LOC,{maximumFractionDigits:1})})}</span></div></div>
  <label class="eslider"><span>${T('eHorseKg')}</span><input type="range" id="eHk" min="200" max="900" step="10" value="${hk}"><b id="eHkV">${hk} kg</b></label>
- <div class="chips eqp">${[['ePony',350],['eLeisure',550],['eDraft',800]].map(([k,v])=>`<button class="chip" data-hk="${v}">${T(k)}</button>`).join('')}</div>
+ <div class="chips eqp">${HORSE_TYPES.map(([k,v])=>`<button class="chip" data-hk="${v}" aria-pressed="${hk===v}" title="~${v} kg">${T(k)}</button>`).join('')}</div>
  <label class="eslider"><span>${T('eRiderKg')}</span><input type="range" id="eRk" min="30" max="130" step="1" value="${rk}"><b id="eRkV">${rk} kg</b></label>
  <p class="muted small">${T('eNote')}</p></section>`}
 function bindEnergy(s){const hk=$('#eHk'),rk=$('#eRk');if(!hk)return;
  const upd=()=>{local.horseKg=+hk.value;local.riderKg=+rk.value;saveLocal();const e=energy(s,+hk.value,+rk.value);
-  $('#eHkV').textContent=hk.value+' kg';$('#eRkV').textContent=rk.value+' kg';$('#eHorse').textContent=fmtInt(e.horse)+' kcal';$('#eRider').textContent=fmtInt(e.rider)+' kcal';
+  $('#eHkV').textContent=hk.value+' kg';document.querySelectorAll('[data-hk]').forEach(b=>b.setAttribute('aria-pressed',b.dataset.hk===hk.value));$('#eRkV').textContent=rk.value+' kg';$('#eHorse').textContent=fmtInt(e.horse)+' kcal';$('#eRider').textContent=fmtInt(e.rider)+' kcal';
   $('#eHay').textContent=T('eHay',{n:(e.horse/HAY_KCAL).toLocaleString(LOC,{maximumFractionDigits:1})});$('#eBeer').textContent=T('eBeer',{n:(e.rider/BEER_KCAL).toLocaleString(LOC,{maximumFractionDigits:1})})};
  hk.oninput=upd;rk.oninput=upd;document.querySelectorAll('[data-hk]').forEach(b=>b.onclick=()=>{hk.value=b.dataset.hk;upd()})}
 function detailHTML(r){const s=stats(r),rv=reviewsOf(r),a=avg(r),fav=local.favorites.includes(r.id),ph=photosOf(r);
  const surf=Object.entries(r.surfaces||{Unbekannt:100});const tot=surf.reduce((x,y)=>x+y[1],0)||1;const c0=r.coords[0];
  return`<div class="detail"><div class="dhead"><button class="btn ghost" id="back">${T('back')}</button><span class="sp"></span>
  <button class="btn fav" id="fav" aria-pressed="${fav}" title="${T('saveTitle')}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z"/></svg>${fav?T('saved'):T('save')}</button>
- <button class="btn" id="gpx" title="${T('gpxTitle')}">GPX</button></div>
+ <button class="btn" id="share" title="${T('shareTitle')}" aria-label="${T('share')}"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V3M7 8l5-5 5 5M5 13v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6"/></svg><span class="lbl">${T('share')}</span></button><button class="btn" id="gpx" title="${T('gpxTitle')}">GPX</button></div>
  <div class="dbody">
  <div class="dtitle"><div class="src">${esc(srcLabel(r.source))} · ${s.loop?T('loop'):T('oneway')}${isMine(r)?' · '+T('byYou'):''}</div><h2>${esc(r.name)}</h2><div class="meta">${esc(r.region||T('noRegion'))} · <span class="pill d-${esc(r.difficulty)}">${esc(diffLabel(r.difficulty))}</span> ${rv.length?` · <span class="stars">${starStr(a)}</span> ${a.toLocaleString(LOC,{maximumFractionDigits:1})}`:''}</div></div>
  <div class="kpis"><div class="kpi"><b>${fmtKm(s.km)}</b><span>${T('km')}</span></div><div class="kpi"><b>${fmtDur(s.hours)}</b><span>${T('duration')}</span></div><div class="kpi"><b>${s.hasE?fmtInt(s.up):'–'}</b><span>${T('up')}</span></div><div class="kpi"><b>${s.hasE?fmtInt(s.down):'–'}</b><span>${T('down')}</span></div></div>
@@ -338,7 +339,13 @@ function detailHTML(r){const s=stats(r),rv=reviewsOf(r),a=avg(r),fav=local.favor
   ${r.source!=='Beispiel'&&!isMine(r)&&backend.online?`<button class="linkbtn" data-report="route" data-target="${esc(r.id)}">${T('reportRoute')}</button>`:''}
   <a href="https://www.openstreetmap.org/?mlat=${c0[0]}&mlon=${c0[1]}#map=15/${c0[0]}/${c0[1]}" target="_blank" rel="noopener" style="color:var(--accent);font-size:13px">${T('osmStart')}</a></section>
  </div></div>`}
+/* Share a route link: the phone's share sheet where available, otherwise copy the link */
+async function shareRoute(r){const url=location.origin+location.pathname+'#/route/'+encodeURIComponent(r.id),s=stats(r);
+ const text=T('shareText',{name:r.name,km:fmtKm(s.km)});
+ if(navigator.share&&/^https?:/.test(location.protocol)){try{await navigator.share({title:r.name,text,url});return}catch(e){if(e.name==='AbortError')return}}
+ try{await navigator.clipboard.writeText(url);toast(T('linkCopied'))}catch(e){modal(`<h3>${T('share')}</h3><p>${T('copyThis')}</p><textarea class="txt copybox" readonly>${esc(url)}</textarea><div class="actions"><button class="btn primary" data-close>${T('close')}</button></div>`).querySelector('textarea').select()}}
 function bindDetail(){const r=byId(ui.sel);let stars=0;bindEnergy(stats(r));
+ $('#share').onclick=()=>shareRoute(r);
  $('#back').onclick=back;
  $('#fav').onclick=()=>{const i=local.favorites.indexOf(r.id);i>=0?local.favorites.splice(i,1):local.favorites.push(r.id);saveLocal();toast(i>=0?T('favRemoved'):T('favAdded'));renderPanel()};
  $('#gpx').onclick=()=>downloadGpx(r);
