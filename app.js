@@ -287,6 +287,28 @@ function modal(html){const m=document.createElement('div');m.className='modal';m
  m.addEventListener('click',e=>{if(e.target===m||e.target.closest('[data-close]'))close()});m.close=close;setTimeout(()=>m.querySelector('input,button,textarea')?.focus(),0);return m}
 
 
+/* Energy estimate (just for fun). Distance is split into a typical gait mix; the horse carries itself, rider and ~10 kg tack.
+   Horse: net cost per kg and km by gait plus lifting work for the climb at ~25 % efficiency.
+   Rider: MET values for horse riding (walk 3.8, trot 5.8, canter 7.3) x body weight x time. */
+const GAITS=[{k:'walk',share:.6,kmh:6,horse:.30,met:3.8},{k:'trot',share:.35,kmh:12,horse:.45,met:5.8},{k:'canter',share:.05,kmh:20,horse:.60,met:7.3}];
+const HAY_KCAL=1900,BEER_KCAL=215,TACK_KG=10;
+function energy(s,horseKg,riderKg){const mass=horseKg+riderKg+TACK_KG;let horse=0,rider=0;
+ GAITS.forEach(g=>{const km=s.km*g.share;horse+=mass*g.horse*km;rider+=g.met*riderKg*km/g.kmh});
+ const climb=s.hasE?mass*9.81*s.up/.25/4184:0;horse+=climb;rider+=s.hasE?riderKg*9.81*s.up/.25/4184*.15:0;
+ return{horse:Math.round(horse/50)*50,rider:Math.round(rider/10)*10}}
+function energyHTML(s){const hk=local.horseKg||550,rk=local.riderKg||70,e=energy(s,hk,rk);
+ return`<section class="energy"><h4>${T('energy')}</h4>
+ <div class="ekpis"><div class="ekpi"><span class="eic">🐴</span><b id="eHorse">${fmtInt(e.horse)} kcal</b><span id="eHay">${T('eHay',{n:(e.horse/HAY_KCAL).toLocaleString(LOC,{maximumFractionDigits:1})})}</span></div>
+ <div class="ekpi"><span class="eic">🧑</span><b id="eRider">${fmtInt(e.rider)} kcal</b><span id="eBeer">${T('eBeer',{n:(e.rider/BEER_KCAL).toLocaleString(LOC,{maximumFractionDigits:1})})}</span></div></div>
+ <label class="eslider"><span>${T('eHorseKg')}</span><input type="range" id="eHk" min="200" max="900" step="10" value="${hk}"><b id="eHkV">${hk} kg</b></label>
+ <div class="chips eqp">${[['ePony',350],['eLeisure',550],['eDraft',800]].map(([k,v])=>`<button class="chip" data-hk="${v}">${T(k)}</button>`).join('')}</div>
+ <label class="eslider"><span>${T('eRiderKg')}</span><input type="range" id="eRk" min="30" max="130" step="1" value="${rk}"><b id="eRkV">${rk} kg</b></label>
+ <p class="muted small">${T('eNote')}</p></section>`}
+function bindEnergy(s){const hk=$('#eHk'),rk=$('#eRk');if(!hk)return;
+ const upd=()=>{local.horseKg=+hk.value;local.riderKg=+rk.value;saveLocal();const e=energy(s,+hk.value,+rk.value);
+  $('#eHkV').textContent=hk.value+' kg';$('#eRkV').textContent=rk.value+' kg';$('#eHorse').textContent=fmtInt(e.horse)+' kcal';$('#eRider').textContent=fmtInt(e.rider)+' kcal';
+  $('#eHay').textContent=T('eHay',{n:(e.horse/HAY_KCAL).toLocaleString(LOC,{maximumFractionDigits:1})});$('#eBeer').textContent=T('eBeer',{n:(e.rider/BEER_KCAL).toLocaleString(LOC,{maximumFractionDigits:1})})};
+ hk.oninput=upd;rk.oninput=upd;document.querySelectorAll('[data-hk]').forEach(b=>b.onclick=()=>{hk.value=b.dataset.hk;upd()})}
 function detailHTML(r){const s=stats(r),rv=reviewsOf(r),a=avg(r),fav=local.favorites.includes(r.id),ph=photosOf(r);
  const surf=Object.entries(r.surfaces||{Unbekannt:100});const tot=surf.reduce((x,y)=>x+y[1],0)||1;const c0=r.coords[0];
  return`<div class="detail"><div class="dhead"><button class="btn ghost" id="back">${T('back')}</button><span class="sp"></span>
@@ -298,6 +320,7 @@ function detailHTML(r){const s=stats(r),rv=reviewsOf(r),a=avg(r),fav=local.favor
  <section class="prof"><h4>${T('profile')}</h4>${profileSVG(s)}</section>
  <section><h4>${T('surface')}</h4><div class="surf">${surf.map(([k,v])=>`<span style="flex:${+v||1};background:${SURF_COL[k]||'#999'}" title="${esc(surfLabel(k))} ${Math.round(v/tot*100)} %"></span>`).join('')}</div>
   <div class="legend">${surf.map(([k,v])=>`<span><i style="background:${SURF_COL[k]||'#999'}"></i>${esc(surfLabel(k))} ${Math.round(v/tot*100)} %</span>`).join('')}</div></section>
+ ${energyHTML(s)}
  ${(r.features||[]).length?`<section><h4>${T('forRiders')}</h4><div class="feat">${r.features.filter(f=>FEAT[f]).map(f=>`<span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${FEAT_ICON[f]}</svg>${featLabel(f)}</span>`).join('')}</div></section>`:''}
  ${r.desc?`<p class="desc">${esc(tr(r,'desc'))}</p>`:''}
  ${r.season?`<div class="note"><b>${T('season')}</b> ${esc(tr(r,'season'))}</div>`:''}
@@ -315,7 +338,7 @@ function detailHTML(r){const s=stats(r),rv=reviewsOf(r),a=avg(r),fav=local.favor
   ${r.source!=='Beispiel'&&!isMine(r)&&backend.online?`<button class="linkbtn" data-report="route" data-target="${esc(r.id)}">${T('reportRoute')}</button>`:''}
   <a href="https://www.openstreetmap.org/?mlat=${c0[0]}&mlon=${c0[1]}#map=15/${c0[0]}/${c0[1]}" target="_blank" rel="noopener" style="color:var(--accent);font-size:13px">${T('osmStart')}</a></section>
  </div></div>`}
-function bindDetail(){const r=byId(ui.sel);let stars=0;
+function bindDetail(){const r=byId(ui.sel);let stars=0;bindEnergy(stats(r));
  $('#back').onclick=back;
  $('#fav').onclick=()=>{const i=local.favorites.indexOf(r.id);i>=0?local.favorites.splice(i,1):local.favorites.push(r.id);saveLocal();toast(i>=0?T('favRemoved'):T('favAdded'));renderPanel()};
  $('#gpx').onclick=()=>downloadGpx(r);
