@@ -129,7 +129,8 @@ const ui={tab:'discover',q:'',diff:new Set(),feats:new Set(),maxKm:40,sort:'rati
 
 /* ---------- map ---------- */
 let map=null,routeLayers={},startMarkers={};
-const HORSESHOE='<svg viewBox="0 0 24 24"><path d="M8 4.5C5.8 6 5 8.6 5.4 11.4c.5 3.4 3 5.4 6.6 5.4s6.1-2 6.6-5.4C19 8.6 18.2 6 16 4.5"/></svg>';
+// Start marker: the brand horseshoe (open at the top, with nail holes).
+const HORSESHOE='<svg viewBox="-11 -11 22 22" aria-hidden="true"><path class="shoe" d="M-4.3-7.6C-7.4-5.6-8.4-1.4-7.6 2.6C-6.8 6.6-3.8 8.6 0 8.6C3.8 8.6 6.8 6.6 7.6 2.6C8.4-1.4 7.4-5.6 4.3-7.6"/><g class="nails"><circle cx="-7.3" cy="-2.6" r=".8"/><circle cx="-7" cy="2.4" r=".8"/><circle cx="7.3" cy="-2.6" r=".8"/><circle cx="7" cy="2.4" r=".8"/></g></svg>';
 function initMap(){
  if(typeof L==='undefined'){$('#map').innerHTML=`<div class="maperr">${T('mapFail')}</div>`;return}
  map=L.map('map',{zoomControl:false,minZoom:4,maxZoom:18}).setView([51.2,10.4],6);
@@ -209,7 +210,7 @@ async function loadPoi(P){if(!P.on)return;if(P.busy){P.again=true;return}
 function fitAll(){if(!map)return;const b=L.latLngBounds([]);allRoutes().forEach(r=>r.coords.forEach(p=>b.extend([p[0],p[1]])));if(b.isValid())map.fitBounds(b,{padding:[30,30],maxZoom:13,animate:false})}
 function drawRoutes(){if(!map)return;Object.values(routeLayers).forEach(g=>map.removeLayer(g));Object.values(startMarkers).forEach(m=>map.removeLayer(m));routeLayers={};startMarkers={};
  (ui.sel&&byId(ui.sel)?[byId(ui.sel)]:visibleList(true)).forEach(r=>{const ll=r.coords.map(p=>[p[0],p[1]]);const casing=L.polyline(ll,{weight:8,opacity:.9,interactive:false});const ln=L.polyline(ll,{weight:4.5,opacity:1});const g=L.layerGroup([casing,ln]).addTo(map);g._c=casing;g._l=ln;ln.on('click',()=>select(r.id));ln.bindTooltip(r.name,{sticky:true});routeLayers[r.id]=g;
-  const m=L.marker(ll[0],{icon:L.divIcon({className:'',html:`<div class="pin">${HORSESHOE}</div>`,iconSize:[28,28],iconAnchor:[14,30]}),title:r.name,keyboard:true}).addTo(map);m.on('click',()=>select(r.id));startMarkers[r.id]=m});
+  const m=L.marker(ll[0],{icon:L.divIcon({className:'',html:`<div class="pin">${HORSESHOE}</div>`,iconSize:[32,32],iconAnchor:[16,16]}),title:r.name,keyboard:true}).addTo(map);m.on('click',()=>select(r.id));startMarkers[r.id]=m});
  styleRoutes()}
 function styleRoutes(){const rc=cssVar('--route'),rs=cssVar('--route-sel'),cs=cssVar('--route-case');Object.entries(routeLayers).forEach(([id,g])=>{const sel=id===ui.sel;g._c.setStyle({color:cs,weight:sel?10:8});g._l.setStyle({color:sel?rs:rc,weight:sel?6:4.5,opacity:ui.sel&&!sel?.55:1});if(sel){g._c.bringToFront();g._l.bringToFront()}});Object.entries(startMarkers).forEach(([id,m])=>{const el=m.getElement()?.querySelector('.pin');if(el)el.classList.toggle('sel',id===ui.sel)})}
 
