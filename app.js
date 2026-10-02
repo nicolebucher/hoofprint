@@ -130,39 +130,48 @@ function initMap(){
  L.control.layers({[T('layerStreet')]:osm,[T('layerTopo')]:topo},{[T('layerRiding')]:riding},{position:'topright',collapsed:true}).addTo(map);
  L.control.zoom({position:'topright'}).addTo(map);
  L.control.scale({imperial:false,position:'bottomleft'}).addTo(map);
- initFood();
+ initPoi();
  map.on('moveend',()=>{if(ui.inView&&!ui.sel)renderPanel()});
  map.on('click',e=>{if(ui.draft)addDraftPoint(e.latlng)});
  const mq=matchMedia('(prefers-color-scheme: dark)');mq.addEventListener?.('change',styleRoutes);
 }
-/* "Bierpause": snack bars, restaurants, cafés and beer gardens from OpenStreetMap (Overpass API), shown on demand */
-const FOOD_KIND={restaurant:'🍽️',fast_food:'🥨',cafe:'☕',biergarten:'🍺'};
+/* Optional map layers from OpenStreetMap (Overpass API), each switched on by its own button:
+   "Bierpause" (places to eat) and riding stations. OSM tagging varies, so each layer queries several tag combinations. */
 const OVERPASS=['https://overpass-api.de/api/interpreter','https://overpass.private.coffee/api/interpreter','https://overpass.kumi.systems/api/interpreter'];
-const FOOD_MINZOOM=11;
-let food={on:false,layer:null,btn:null,hint:null,seen:{},timer:null,busy:false,again:false};
-function initFood(){food.layer=L.layerGroup().addTo(map);
- const C=L.Control.extend({onAdd(){const d=L.DomUtil.create('div','foodctl');d.innerHTML=`<button type="button" aria-pressed="false" title="${T('foodTitle')}">🍺 <span>${T('food')}</span></button><div class="foodhint" role="status" hidden></div>`;L.DomEvent.disableClickPropagation(d);L.DomEvent.disableScrollPropagation(d);food.btn=d.querySelector('button');food.hint=d.querySelector('.foodhint');food.btn.onclick=toggleFood;return d}});
- new C({position:'topleft'}).addTo(map);
- map.on('moveend',()=>{if(food.on){clearTimeout(food.timer);food.timer=setTimeout(loadFood,400)}});
- if(local.food)toggleFood()}
-function foodHint(txt){food.hint.textContent=txt||'';food.hint.hidden=!txt}
-function toggleFood(){food.on=!food.on;food.btn.setAttribute('aria-pressed',food.on);local.food=food.on;saveLocal();
- if(food.on)loadFood();else{food.layer.clearLayers();food.seen={};foodHint('')}}
+const POI_MINZOOM=11;
+const POI_DEFS={
+ food:{icon:'🍺',query:bb=>`nwr["amenity"~"^(restaurant|fast_food|cafe|biergarten|pub|ice_cream)$"](${bb});nwr["shop"="kiosk"](${bb});nwr["tourism"~"^(hotel|guest_house|alpine_hut)$"]["name"~"gasthaus|gasthof|wirtshaus|restaurant|einkehr|krug|schänke|schenke|baude",i](${bb});`,
+  kind:t=>({restaurant:'restaurant',fast_food:'fast_food',cafe:'cafe',biergarten:'biergarten',pub:'pub',ice_cream:'ice_cream'})[t.amenity]||(t.shop==='kiosk'?'kiosk':'inn'),
+  icons:{restaurant:'🍽️',fast_food:'🥨',cafe:'☕',biergarten:'🍺',pub:'🍺',ice_cream:'🍦',kiosk:'🥤',inn:'🍽️'}},
+ stations:{icon:'🐴',query:bb=>`nwr["leisure"="horse_riding"](${bb});nwr["name"~"wanderreit|reiterhof|pferdehof|reitstation|reiterpension|pferdepension|reitstall",i](${bb});nwr["tourism"]["horse"~"^(yes|designated)$"](${bb});`,
+  kind:t=>/wanderreit/i.test(t.name||'')?'station':t.leisure==='horse_riding'?'stable':(t.tourism?'lodging':'stable'),
+  icons:{station:'🐴',stable:'🐎',lodging:'🛏️'}}};
+const poi={};
+function initPoi(){const box=L.DomUtil.create('div','poictl');L.DomEvent.disableClickPropagation(box);L.DomEvent.disableScrollPropagation(box);
+ Object.entries(POI_DEFS).forEach(([key,def])=>{const P=poi[key]={key,def,on:false,layer:L.layerGroup().addTo(map),seen:{},timer:null,busy:false,again:false};
+  const w=document.createElement('div');w.className='poiitem';w.innerHTML=`<button type="button" aria-pressed="false" title="${T(key+'Title')}">${def.icon} <span>${T(key)}</span><b class="cnt" hidden></b></button><div class="poihint" role="status" hidden></div>`;
+  P.btn=w.querySelector('button');P.cnt=w.querySelector('.cnt');P.hint=w.querySelector('.poihint');P.btn.onclick=()=>togglePoi(P);box.appendChild(w)});
+ new (L.Control.extend({onAdd:()=>box}))({position:'topleft'}).addTo(map);
+ map.on('moveend',()=>Object.values(poi).forEach(P=>{if(P.on){clearTimeout(P.timer);P.timer=setTimeout(()=>loadPoi(P),400)}}));
+ if(local.food!=null){local.poi={food:local.food};delete local.food;saveLocal()}
+ Object.values(poi).forEach(P=>{if((local.poi||{})[P.key])togglePoi(P)})}
+function poiHint(P,txt,n){P.hint.textContent=txt||'';P.hint.hidden=!txt;P.cnt.textContent=n||'';P.cnt.hidden=!n}
+function togglePoi(P){P.on=!P.on;P.btn.setAttribute('aria-pressed',P.on);local.poi={...(local.poi||{}),[P.key]:P.on};saveLocal();
+ if(P.on)loadPoi(P);else{P.layer.clearLayers();P.seen={};poiHint(P,'');P.btn.title=T(P.key+'Title')}}
 async function overpass(q){let last;for(const url of OVERPASS){try{const r=await fetch(url,{method:'POST',body:'data='+encodeURIComponent(q),headers:{'Content-Type':'application/x-www-form-urlencoded'}});if(r.ok)return await r.json();last=new Error('HTTP '+r.status)}catch(e){last=e}}throw last}
-async function loadFood(){if(!food.on)return;if(food.busy){food.again=true;return}
- if(map.getZoom()<FOOD_MINZOOM){foodHint(T('foodZoom'));return}
- const b=map.getBounds().pad(.15),bb=[b.getSouth(),b.getWest(),b.getNorth(),b.getEast()].map(x=>x.toFixed(4)).join(',');
- const q=`[out:json][timeout:25];nwr["amenity"~"^(restaurant|fast_food|cafe|biergarten)$"](${bb});out center 400;`;
- food.busy=true;food.btn.classList.add('busy');foodHint(T('foodLoading'));
- try{const j=await overpass(q);if(!food.on)return;
-  j.elements.forEach(e=>{const id=e.type+e.id;if(food.seen[id])return;const la=e.lat??e.center?.lat,lo=e.lon??e.center?.lon;if(la==null)return;food.seen[id]=1;
-   const t=e.tags||{},k=t.amenity;
-   const m=L.marker([la,lo],{icon:L.divIcon({className:'',html:`<div class="foodpin">${FOOD_KIND[k]||'🍽️'}</div>`,iconSize:[26,26],iconAnchor:[13,13]}),title:t.name||T('food_'+k),keyboard:false});
-   m.bindPopup(`<b>${esc(t.name||T('food_'+k))}</b><br><span class="muted">${esc(T('food_'+k))}</span>${t.opening_hours?`<br>${T('foodHours')}: ${esc(t.opening_hours)}`:''}${t.website?`<br><a href="${esc(/^https?:/.test(t.website)?t.website:'https://'+t.website)}" target="_blank" rel="noopener">${T('foodWeb')}</a>`:''}<br><a href="https://www.openstreetmap.org/${e.type}/${e.id}" target="_blank" rel="noopener">${T('foodOsm')}</a>`);
-   m.addTo(food.layer)});
-  foodHint(j.elements.length?'':T('foodNone'))}
- catch(e){console.warn('Overpass',e);foodHint(T('foodDown'))}
- finally{food.busy=false;food.btn.classList.remove('busy');if(food.again){food.again=false;loadFood()}}}
+async function loadPoi(P){if(!P.on)return;if(P.busy){P.again=true;return}
+ if(map.getZoom()<POI_MINZOOM){poiHint(P,T('poiZoom'));return}
+ const b=map.getBounds().pad(.3),bb=[b.getSouth(),b.getWest(),b.getNorth(),b.getEast()].map(x=>x.toFixed(4)).join(',');
+ P.busy=true;P.btn.classList.add('busy');poiHint(P,T('poiLoading'));
+ try{const j=await overpass(`[out:json][timeout:25];(${P.def.query(bb)});out center 400;`);if(!P.on)return;
+  j.elements.forEach(e=>{const id=e.type+e.id;if(P.seen[id])return;const la=e.lat??e.center?.lat,lo=e.lon??e.center?.lon;if(la==null)return;P.seen[id]=1;
+   const t=e.tags||{},k=P.def.kind(t),label=T(P.key+'_'+k),web=t.website||t['contact:website'],tel=t.phone||t['contact:phone'];
+   const m=L.marker([la,lo],{icon:L.divIcon({className:'',html:`<div class="poipin ${P.key}">${P.def.icons[k]||P.def.icon}</div>`,iconSize:[26,26],iconAnchor:[13,13]}),title:t.name||label,keyboard:false});
+   m.bindPopup(`<b>${esc(t.name||label)}</b><br><span class="muted">${esc(label)}</span>${t.opening_hours?`<br>${T('poiHours')}: ${esc(t.opening_hours)}`:''}${tel?`<br><a href="tel:${esc(tel.replace(/[^+\d]/g,''))}">${esc(tel)}</a>`:''}${web?`<br><a href="${esc(/^https?:/.test(web)?web:'https://'+web)}" target="_blank" rel="noopener">${T('poiWeb')}</a>`:''}<br><a href="https://www.openstreetmap.org/${e.type}/${e.id}" target="_blank" rel="noopener">${T('poiOsm')}</a>`);
+   m.addTo(P.layer)});
+  const n=P.layer.getLayers().length;poiHint(P,n?'':T(P.key+'None'),n);P.btn.title=n?T(n===1?P.key+'N1':P.key+'N',{n}):T(P.key+'Title')}
+ catch(e){console.warn('Overpass',e);poiHint(P,T('poiDown'))}
+ finally{P.busy=false;P.btn.classList.remove('busy');if(P.again){P.again=false;loadPoi(P)}}}
 function fitAll(){if(!map)return;const b=L.latLngBounds([]);allRoutes().forEach(r=>r.coords.forEach(p=>b.extend([p[0],p[1]])));if(b.isValid())map.fitBounds(b,{padding:[30,30],maxZoom:13,animate:false})}
 function drawRoutes(){if(!map)return;Object.values(routeLayers).forEach(g=>map.removeLayer(g));Object.values(startMarkers).forEach(m=>map.removeLayer(m));routeLayers={};startMarkers={};
  (ui.sel&&byId(ui.sel)?[byId(ui.sel)]:visibleList(true)).forEach(r=>{const ll=r.coords.map(p=>[p[0],p[1]]);const casing=L.polyline(ll,{weight:8,opacity:.9,interactive:false});const ln=L.polyline(ll,{weight:4.5,opacity:1});const g=L.layerGroup([casing,ln]).addTo(map);g._c=casing;g._l=ln;ln.on('click',()=>select(r.id));ln.bindTooltip(r.name,{sticky:true});routeLayers[r.id]=g;
