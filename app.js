@@ -35,8 +35,8 @@ s+=`<path d="M150 300 C${140+r()*20} 260 ${120+r()*60} 230 ${150+r()*30} 205" st
 const hx=110+r()*70,hy=232;s+=`<g transform="translate(${hx} ${hy}) scale(.9)" fill="#3a2a20"><ellipse cx="0" cy="0" rx="22" ry="10"/><path d="M16 -6 L30 -24 L36 -22 L28 -2Z"/><rect x="-18" y="4" width="4" height="22"/><rect x="-10" y="5" width="4" height="21"/><rect x="8" y="5" width="4" height="21"/><rect x="15" y="4" width="4" height="22"/><path d="M-22 -2 q-10 6 -8 20 l3 0 q0 -12 7 -16z"/><circle cx="-2" cy="-26" r="5"/><path d="M-6 -21 h8 l2 14 h-12z"/></g>`;
 return'data:image/svg+xml,'+encodeURIComponent(s+'</svg>')}
 
-const FEAT={parking:1,water:1,gallop:1,inn:1,beach:1,shade:1,plakette:1};
-const FEAT_ICON={parking:'<path d="M6 20V4h7a5 5 0 0 1 0 10H6"/>',water:'<path d="M12 3s6 7 6 11a6 6 0 0 1-12 0c0-4 6-11 6-11z"/>',gallop:'<path d="M3 17h18M5 13l4-4 4 3 6-6"/>',inn:'<path d="M5 3v8a3 3 0 0 0 6 0V3M8 11v10M17 3c-2 0-3 3-3 6s1 3 3 3v9"/>',beach:'<path d="M3 18c3-2 6 2 9 0s6 2 9 0M12 4a7 7 0 0 1 7 7H5a7 7 0 0 1 7-7zM12 11v6"/>',shade:'<path d="M12 3l6 9h-3l4 6H5l4-6H6z M12 18v3"/>',plakette:'<rect x="4" y="6" width="16" height="12" rx="2"/><path d="M8 12h8"/>'};
+const FEAT={parking:1,water:1,gallop:1,inn:1,beach:1,shade:1,stream:1,road:1,plakette:1};
+const FEAT_ICON={parking:'<path d="M6 20V4h7a5 5 0 0 1 0 10H6"/>',water:'<path d="M12 3s6 7 6 11a6 6 0 0 1-12 0c0-4 6-11 6-11z"/>',gallop:'<path d="M3 17h18M5 13l4-4 4 3 6-6"/>',inn:'<path d="M5 3v8a3 3 0 0 0 6 0V3M8 11v10M17 3c-2 0-3 3-3 6s1 3 3 3v9"/>',beach:'<path d="M3 18c3-2 6 2 9 0s6 2 9 0M12 4a7 7 0 0 1 7 7H5a7 7 0 0 1 7-7zM12 11v6"/>',shade:'<path d="M12 3l6 9h-3l4 6H5l4-6H6z M12 18v3"/>',plakette:'<rect x="4" y="6" width="16" height="12" rx="2"/><path d="M8 12h8"/>',stream:'<path d="M3 15c2-1.5 4 1.5 6 0s4 1.5 6 0 4 1.5 6 0M3 19c2-1.5 4 1.5 6 0s4 1.5 6 0 4 1.5 6 0M7 11V5M17 11V5"/>',road:'<path d="M4 3l3 18M20 3l-3 18M12 4v3M12 10.5v3M12 17v3"/>'};
 const SURF_COL={Sandweg:'#d8b56a',Heidepfad:'#9a6b9e',Waldweg:'#4f7d45',Feldweg:'#b8a26a',Wiesenpfad:'#8cbf5a',Schotter:'#9aa0a6',Asphalt:'#5c6670',Strand:'#e6cf8f',Almweg:'#7aa35c',Unbekannt:'#a6aea0'};
 
 const SEED=[
@@ -198,7 +198,7 @@ function hoverRoute(id,on){const g=routeLayers[id];if(!g)return;g._l.setStyle({w
 /* Filter sheet: all filters in one place, applied live */
 function openFilters(){const m=modal(`<h3>${T('filters')}</h3>
  <div class="field">${T('difficulty')}<div class="chips">${['leicht','mittel','schwer'].map(d=>`<button class="chip" data-diff="${d}" aria-pressed="${ui.diff.has(d)}">${diffLabel(d)}</button>`).join('')}</div></div>
- <div class="field">${T('forRiders')}<div class="chips">${['parking','gallop','water','inn','beach','shade'].map(f=>`<button class="chip" data-feat="${f}" aria-pressed="${ui.feats.has(f)}">${featLabel(f)}</button>`).join('')}</div></div>
+ <div class="field">${T('forRiders')}<div class="chips">${['parking','gallop','water','inn','beach','shade','stream','road'].map(f=>`<button class="chip" data-feat="${f}" aria-pressed="${ui.feats.has(f)}">${featLabel(f)}</button>`).join('')}</div></div>
  <div class="field"><span>${T('maxLength')}: <b id="fKmV" style="color:var(--fg)">${ui.maxKm<40?ui.maxKm+' km':T('any')}</b></span><input id="fKm" type="range" min="5" max="40" step="1" value="${ui.maxKm}" style="accent-color:var(--accent)"></div>
  <label class="field">${T('sort')}<select class="txt" id="fSort"><option value="rating">${T('sortRating')}</option><option value="short">${T('sortShort')}</option><option value="long">${T('sortLong')}</option><option value="new">${T('sortNew')}</option></select></label>
  <label class="checks"><label><input type="checkbox" id="fView" ${ui.inView?'checked':''}> ${T('inView')}</label></label>

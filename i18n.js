@@ -96,7 +96,7 @@ de: {
   saveFailed: "Speichern hat nicht geklappt: ", deleteOnlyDevice: "Löschen geht nur auf dem Gerät, mit dem der Beitrag erstellt wurde.",
   storageFull: "Der Browser-Speicher ist voll.", photoStorageFull: "Das Foto passt nicht mehr in den Browser-Speicher.",
   feat_parking: "Hängerparkplatz", feat_water: "Wasserstelle", feat_gallop: "Galoppstrecke", feat_inn: "Einkehr mit Anbindebalken",
-  feat_beach: "Strandabschnitt", feat_shade: "Viel Schatten", feat_plakette: "Reitplakette nötig",
+  feat_beach: "Strandabschnitt", feat_shade: "Viel Schatten", feat_stream: "Bachüberquerung", feat_road: "Straßenüberquerung", feat_plakette: "Reitplakette nötig",
   s_Waldweg: "Waldweg", s_Feldweg: "Feldweg", s_Wiesenpfad: "Wiesenpfad", s_Sandweg: "Sandweg", s_Schotter: "Schotter",
   s_Asphalt: "Asphalt", s_Strand: "Strand", s_Almweg: "Almweg", s_Heidepfad: "Heidepfad", s_Unbekannt: "Unbekannt"
 },
@@ -195,7 +195,7 @@ en: {
   saveFailed: "Saving failed: ", deleteOnlyDevice: "You can only delete a post on the device that created it.",
   storageFull: "Browser storage is full.", photoStorageFull: "The photo no longer fits in browser storage.",
   feat_parking: "Trailer parking", feat_water: "Water for horses", feat_gallop: "Gallop stretch", feat_inn: "Café/inn with hitching rail",
-  feat_beach: "Beach section", feat_shade: "Lots of shade", feat_plakette: "Riding permit tag required",
+  feat_beach: "Beach section", feat_shade: "Lots of shade", feat_stream: "Stream crossing", feat_road: "Road crossing", feat_plakette: "Riding permit tag required",
   s_Waldweg: "Forest track", s_Feldweg: "Farm track", s_Wiesenpfad: "Meadow path", s_Sandweg: "Sand track", s_Schotter: "Gravel",
   s_Asphalt: "Tarmac", s_Strand: "Beach", s_Almweg: "Alpine track", s_Heidepfad: "Heath path", s_Unbekannt: "Unknown"
 }
