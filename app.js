@@ -120,7 +120,9 @@ const isMine=r=>local.mine.includes(r.id);
 const reviewsOf=r=>[...shared.reviews.filter(x=>x.routeId===r.id),...(r.reviews||[]).map(x=>({...x,example:true}))];
 const photosOf=r=>[...shared.photos.filter(x=>x.routeId===r.id).map(p=>({...p,src:p.url})),...(r.seedPhotos||[]).map(src=>({src,example:true}))];
 function avg(r){const rv=reviewsOf(r);return rv.length?rv.reduce((a,b)=>a+b.stars,0)/rv.length:0}
-function starStr(v){const f=Math.round(v);return'★'.repeat(f)+'☆'.repeat(5-f)}
+// Ratings are shown as hoofprints (the logo mark) instead of stars.
+const hoof=(on=true)=>`<svg class="hf${on?'':' off'}" viewBox="-9 -9 18 17" aria-hidden="true"><path d="M-6 6.5C-9 2-8-7.6 0-8.2C8-7.6 9 2 6 6.5C4.5 7.6 2.8 7.4 1.6 6.6L0 1.2L-1.6 6.6C-2.8 7.4-4.5 7.6-6 6.5Z"/></svg>`;
+function starStr(v){const f=Math.round(v);return`<span class="hoofs" role="img" aria-label="${T('nStars',{n:f})}">${[1,2,3,4,5].map(i=>hoof(i<=f)).join('')}</span>`}
 
 /* ---------- state ---------- */
 const ui={tab:'discover',q:'',diff:new Set(),feats:new Set(),maxKm:40,sort:'rating',inView:false,sel:null,draft:null,loading:true,loadError:null};
@@ -360,7 +362,7 @@ function openRode(r){const today=new Date().toISOString().slice(0,10),picked=new
  <div class="row2"><label class="field">${T('rideDate')}<input class="txt" type="date" id="rdDate" value="${today}" max="${today}"></label>
  <label class="field">${T('horseName')}<input class="txt" id="rdHorse" maxlength="40" value="${esc(local.lastHorse||'')}" placeholder="${T('horsePh')}"></label></div>
  <label class="field">${T('yourName')}<input class="txt" id="rdName" maxlength="60" value="${esc(local.lastName||'')}" placeholder="${T('nickPh')}"></label>
- <div class="field">${T('rideStars')}<div class="starpick" id="rdStars" role="radiogroup" aria-label="${T('stars')}">${[1,2,3,4,5].map(i=>`<button type="button" data-v="${i}" aria-label="${T('nStars',{n:i})}">★</button>`).join('')}</div></div>
+ <div class="field">${T('rideStars')}<div class="starpick" id="rdStars" role="radiogroup" aria-label="${T('stars')}">${[1,2,3,4,5].map(i=>`<button type="button" data-v="${i}" aria-label="${T('nStars',{n:i})}">${hoof()}</button>`).join('')}</div></div>
  <div class="field">${T('trailNow')}<div class="chips">${Object.entries(CONDS).map(([k,i])=>`<button type="button" class="chip" data-cond="${k}" aria-pressed="false">${i} ${T('cond_'+k)}</button>`).join('')}</div></div>
  <label class="field">${T('rideNote')}<textarea class="txt" id="rdNote" maxlength="300" placeholder="${T('rideNotePh')}"></textarea></label>
  <label class="hp" aria-hidden="true">Website<input id="rdWeb" tabindex="-1" autocomplete="off"></label>
@@ -457,7 +459,7 @@ function detailHTML(r){const s=stats(r),rv=reviewsOf(r),a=avg(r),fav=local.favor
  ${energyHTML(s)}
  <section><h4>${T('reviews')}</h4><div class="reviews">
   <div class="rating-sum">${rv.length?`<b>${a.toLocaleString(LOC,{maximumFractionDigits:1})}</b><span class="stars" style="font-size:20px">${starStr(a)}</span><span style="color:var(--muted)">${rv.length} ${rv.length>1?T('reviewN'):T('review1')}</span>`:`<span style="color:var(--muted)">${T('noReviews')}</span>`}</div>
-  <form class="revform" id="revform"><div class="starpick" id="starpick" role="radiogroup" aria-label="${T('stars')}">${[1,2,3,4,5].map(i=>`<button type="button" data-v="${i}" aria-label="${T('nStars',{n:i})}">★</button>`).join('')}</div>
+  <form class="revform" id="revform"><div class="starpick" id="starpick" role="radiogroup" aria-label="${T('stars')}">${[1,2,3,4,5].map(i=>`<button type="button" data-v="${i}" aria-label="${T('nStars',{n:i})}">${hoof()}</button>`).join('')}</div>
    <input class="txt" id="revName" placeholder="${T('nickPh')}" maxlength="60"><textarea class="txt" id="revText" placeholder="${T('reviewPh')}" maxlength="600"></textarea>
    <label class="hp" aria-hidden="true">Website<input id="revWeb" tabindex="-1" autocomplete="off"></label>
    <div class="actions"><span class="err" id="revErr"></span><button class="btn primary" type="submit">${T('submitReview')}</button></div></form>
@@ -500,7 +502,7 @@ $('#filePhoto').onchange=async e=>{const r=byId(ui.sel);if(!r)return;const files
 function shrink(file,max,q){return new Promise((res,rej)=>{const url=URL.createObjectURL(file);const im=new Image();im.onerror=()=>rej(new Error(T('imgUnreadable')));im.onload=()=>{const k=Math.min(1,max/Math.max(im.width,im.height));const c=document.createElement('canvas');c.width=Math.round(im.width*k);c.height=Math.round(im.height*k);c.getContext('2d').drawImage(im,0,0,c.width,c.height);URL.revokeObjectURL(url);c.toBlob(b=>b?res(b):rej(new Error(T('imgShrinkFail'))),'image/jpeg',q)};im.src=url})}
 function downloadGpx(r){const blob=new Blob([toGpx(r)],{type:'application/gpx+xml'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=(r.name.replace(/[^\wäöüÄÖÜß\- ]+/g,'').trim()||'route')+'.gpx';document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},500)}
 function openEditReview(v){if(!v)return;let stars=v.stars;
- const m=modal(`<h3>${T('editReview')}</h3><div class="starpick" id="eStars">${[1,2,3,4,5].map(i=>`<button type="button" data-v="${i}" class="${i<=stars?'on':''}" aria-label="${T('nStars',{n:i})}">★</button>`).join('')}</div>
+ const m=modal(`<h3>${T('editReview')}</h3><div class="starpick" id="eStars">${[1,2,3,4,5].map(i=>`<button type="button" data-v="${i}" class="${i<=stars?'on':''}" aria-label="${T('nStars',{n:i})}">${hoof()}</button>`).join('')}</div>
  <input class="txt" id="eName" maxlength="60" value="${esc(v.name||'')}" placeholder="${T('nickPh')}"><textarea class="txt" id="eText" maxlength="600" placeholder="${T('reviewPh')}">${esc(v.text||'')}</textarea>
  <div class="err" id="eErr"></div><div class="actions"><button class="btn" data-close>${T('cancel')}</button><button class="btn primary" id="eSave">${T('saveChanges')}</button></div>`);
  m.querySelectorAll('#eStars button').forEach(b=>b.onclick=()=>{stars=+b.dataset.v;m.querySelectorAll('#eStars button').forEach(x=>x.classList.toggle('on',+x.dataset.v<=stars))});
@@ -617,7 +619,7 @@ function newRoutes(){return allRoutes().slice().sort((a,b)=>String(b.createdAt).
 function topRoutes(){return allRoutes().filter(r=>reviewsOf(r).length).slice().sort((a,b)=>(avg(b)*Math.min(reviewsOf(b).length,3))-(avg(a)*Math.min(reviewsOf(a).length,3))||String(b.createdAt).localeCompare(String(a.createdAt))).slice(0,6)}
 function tileHTML(r){const s=stats(r),a=avg(r),n=reviewsOf(r).length,ph=photosOf(r)[0];
  return`<a class="tile" href="#/route/${encodeURIComponent(r.id)}">${ph?`<img src="${esc(ph.src)}" alt="" loading="lazy">`:'<div class="ph"></div>'}
- <div class="tbody"><div class="tmeta"><span class="pill d-${esc(r.difficulty)}">${esc(diffLabel(r.difficulty))}</span>${n?`<span class="stars">★ ${a.toLocaleString(LOC,{maximumFractionDigits:1})}</span><span class="muted">(${n})</span>`:''}${innBadge(r)}</div>
+ <div class="tbody"><div class="tmeta"><span class="pill d-${esc(r.difficulty)}">${esc(diffLabel(r.difficulty))}</span>${n?`<span class="stars">${hoof()} ${a.toLocaleString(LOC,{maximumFractionDigits:1})}</span><span class="muted">(${n})</span>`:''}${innBadge(r)}</div>
  <h4>${esc(r.name)}</h4><div class="muted">${esc(r.region||T('noRegion'))}</div><div class="tstats">${fmtKm(s.km)} km · ${fmtDur(s.hours)}${s.hasE?` · ↑ ${fmtInt(s.up)} m`:''}</div></div></a>`}
 function renderHome(){const regions=[...new Set(allRoutes().map(r=>(r.region||'').split('·')[0].trim()).filter(Boolean))].sort();
  const quick=[['leicht',T('qEasy')],['gallop',T('qGallop')],['beach',T('qBeach')],['inn',T('qInn')]];
