@@ -136,7 +136,7 @@ function initMap(){
 }
 function fitAll(){if(!map)return;const b=L.latLngBounds([]);allRoutes().forEach(r=>r.coords.forEach(p=>b.extend([p[0],p[1]])));if(b.isValid())map.fitBounds(b,{padding:[30,30],maxZoom:13,animate:false})}
 function drawRoutes(){if(!map)return;Object.values(routeLayers).forEach(g=>map.removeLayer(g));Object.values(startMarkers).forEach(m=>map.removeLayer(m));routeLayers={};startMarkers={};
- visibleList(true).forEach(r=>{const ll=r.coords.map(p=>[p[0],p[1]]);const casing=L.polyline(ll,{weight:8,opacity:.9,interactive:false});const ln=L.polyline(ll,{weight:4.5,opacity:1});const g=L.layerGroup([casing,ln]).addTo(map);g._c=casing;g._l=ln;ln.on('click',()=>select(r.id));ln.bindTooltip(r.name,{sticky:true});routeLayers[r.id]=g;
+ (ui.sel&&byId(ui.sel)?[byId(ui.sel)]:visibleList(true)).forEach(r=>{const ll=r.coords.map(p=>[p[0],p[1]]);const casing=L.polyline(ll,{weight:8,opacity:.9,interactive:false});const ln=L.polyline(ll,{weight:4.5,opacity:1});const g=L.layerGroup([casing,ln]).addTo(map);g._c=casing;g._l=ln;ln.on('click',()=>select(r.id));ln.bindTooltip(r.name,{sticky:true});routeLayers[r.id]=g;
   const m=L.marker(ll[0],{icon:L.divIcon({className:'',html:`<div class="pin">${HORSESHOE}</div>`,iconSize:[28,28],iconAnchor:[14,30]}),title:r.name,keyboard:true}).addTo(map);m.on('click',()=>select(r.id));startMarkers[r.id]=m});
  styleRoutes()}
 function styleRoutes(){const rc=cssVar('--route'),rs=cssVar('--route-sel'),cs=cssVar('--route-case');Object.entries(routeLayers).forEach(([id,g])=>{const sel=id===ui.sel;g._c.setStyle({color:cs,weight:sel?10:8});g._l.setStyle({color:sel?rs:rc,weight:sel?6:4.5,opacity:ui.sel&&!sel?.55:1});if(sel){g._c.bringToFront();g._l.bringToFront()}});Object.entries(startMarkers).forEach(([id,m])=>{const el=m.getElement()?.querySelector('.pin');if(el)el.classList.toggle('sel',id===ui.sel)})}
@@ -223,7 +223,7 @@ async function findPlace(q){q=q.trim();if(!q)return;map?.invalidateSize();
 
 /* ---------- detail ---------- */
 function select(id){if(ui.draft)return;location.hash='#/route/'+encodeURIComponent(id)}
-function showRoute(id){ui.sel=id;ui.confirmDel=null;renderPanel();$('#panel').scrollTop=0;styleRoutes();const r=byId(id);if(map&&r){map.fitBounds(L.latLngBounds(r.coords.map(p=>[p[0],p[1]])),{padding:[40,40],maxZoom:15})}}
+function showRoute(id){ui.sel=id;ui.confirmDel=null;renderPanel();$('#panel').scrollTop=0;drawRoutes();const r=byId(id);if(map&&r){map.fitBounds(L.latLngBounds(r.coords.map(p=>[p[0],p[1]])),{padding:[40,40],maxZoom:15})}}
 function back(){location.hash=ui.lastList||'#/explore'}
 
 function profileSVG(s){if(!s.hasE)return`<p class="note">${T('noEle')}</p>`;
